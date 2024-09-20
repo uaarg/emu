@@ -29,6 +29,12 @@ Install front end dependancies
 ```
 ./scripts/install.sh
 ```
+If on Windows (powershell) run the following commands.
+```
+npm install
+npm install -D tailwindcss postcss autoprefixer
+npm i -D @types/node
+```
 
 Setup the python virtual environment (do this once)
 --------------------
