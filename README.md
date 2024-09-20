@@ -18,18 +18,22 @@ Installation & Setup
 Make sure you have python >=3.10 installed on your machine and that it is in
 your `PATH`.
 
-# Install front end dependancies
+Install front end dependancies
+--------------------
 ./install.sh
 
-# Setup the python virtual environment (do this once)
+Setup the python virtual environment (do this once)
+--------------------
 python3 -m venv venv
 
-# Activate the virtual environment (different for each OS)
+Activate the virtual environment (different for each OS)
+--------------------
 source ./venv/bin/activate  # (MacOS/Linux/...) unix shell
 venv\Scripts\activate.bat   # (Windows) cmd.exe
 venv\Scripts\Activate.ps1   # (Windoes) PowerShell
 
-# Install dependencies (do this at setup and/or when requirements.txt changes)
+Install dependencies (do this at setup and/or when requirements.txt changes)
+--------------------
 pip install -r requirements.txt
 ```
 Warning
