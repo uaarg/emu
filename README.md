@@ -28,14 +28,16 @@ python3 -m venv venv
 
 Activate the virtual environment (different for each OS)
 --------------------
+```
 source ./venv/bin/activate  # (MacOS/Linux/...) unix shell
 venv\Scripts\activate.bat   # (Windows) cmd.exe
 venv\Scripts\Activate.ps1   # (Windoes) PowerShell
+```
 
 Install dependencies (do this at setup and/or when requirements.txt changes)
 --------------------
 pip install -r requirements.txt
-```
+
 Warning
 --------------
 This repository is still under development
