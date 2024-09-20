@@ -11,6 +11,9 @@ Emu does this through a combination of manual and
 automatic processes. The ultimate objective is to offer a view into 
 the drone's operations.
 
+# Warning
+--------------
+**This repository is still under development**
 
 Installation & Setup
 --------------------
@@ -23,11 +26,13 @@ Install front end dependancies
 ```
 ./install.sh
 ```
+
 Setup the python virtual environment (do this once)
 --------------------
 ```
 python3 -m venv venv
 ```
+
 Activate the virtual environment (different for each OS)
 --------------------
 ```
@@ -41,9 +46,6 @@ Install dependencies (do this at setup and/or when requirements.txt changes)
 ```
 pip install -r requirements.txt
 ```
-# Warning
---------------
-**This repository is still under development**
 
 Running Emu
 --------------
@@ -51,6 +53,7 @@ Run the gui using command
 ```
 npm run dev
 ```
+
 Contributing
 ------------
 A few notes about contributing:
