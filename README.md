@@ -20,12 +20,14 @@ your `PATH`.
 
 Install front end dependancies
 --------------------
+```
 ./install.sh
-
+```
 Setup the python virtual environment (do this once)
 --------------------
+```
 python3 -m venv venv
-
+```
 Activate the virtual environment (different for each OS)
 --------------------
 ```
@@ -36,18 +38,19 @@ venv\Scripts\Activate.ps1   # (Windoes) PowerShell
 
 Install dependencies (do this at setup and/or when requirements.txt changes)
 --------------------
+```
 pip install -r requirements.txt
-
-Warning
+```
+# Warning
 --------------
-This repository is still under development
+**This repository is still under development**
 
 Running Emu
 --------------
-
-run the gui using command
+Run the gui using command
+```
 npm run dev
-
+```
 Contributing
 ------------
 A few notes about contributing:
