@@ -1,19 +1,22 @@
 Emu readme
 =============
 Emu is UAARG's latest ground station imaging software. It is based on 
-the old ground station software pigeon and is used to:
+the old ground station software - pigeon 
+
+Emu is used to:
 - Monitor drone status.
 - Send commands.
 - Display maps and images.
 - Log messages.
 - Create an SSH connection with the onboard computer.
+
 Emu does this through a combination of manual and
 automatic processes. The ultimate objective is to offer a view into 
 the drone's operations.
 
 # Warning
 --------------
-**This repository is still under development**
+**THIS REPOSITORY IS STILL UNDER DEVELOPMENT**
 
 Installation & Setup
 --------------------
@@ -24,7 +27,7 @@ your `PATH`.
 Install front end dependancies
 --------------------
 ```
-./install.sh
+./scripts/install.sh
 ```
 
 Setup the python virtual environment (do this once)
