@@ -1,5 +1,3 @@
-# emu
-
 Emu readme
 =============
 Emu is UAARG's latest ground station imaging software. It is based on 
