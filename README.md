@@ -26,10 +26,11 @@ your `PATH`.
 
 Install front end dependancies
 --------------------
+For linux or MacOS
 ```
 ./scripts/install.sh
 ```
-If on Windows (powershell) run the following commands.
+For Windows (powershell) run the following commands.
 ```
 npm install
 npm install -D tailwindcss postcss autoprefixer
