@@ -30,6 +30,8 @@ For linux or MacOS
 ```
 ./scripts/install.sh
 ```
+Reload your shell after running the install script.
+
 For Windows (powershell) run the following commands.
 ```
 npm install
