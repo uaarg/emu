@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import queue
 import datetime
 
-from pigeon.comms.services.common import MavlinkService
+from backend.src.comms.services.common import MavlinkService
 
 
 @dataclass

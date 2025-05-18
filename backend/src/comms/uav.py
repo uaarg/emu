@@ -1,4 +1,4 @@
-from dataclasses import field
+from dataclasses import field, dataclass
 from typing import Callable
 
 from pymavlink import mavutil
@@ -8,9 +8,9 @@ import time
 import logging
 import queue
 
-from .services.imagesservice import ImageService
-from .services.messageservice import MessageCollectorService
-from .services.common import HeartbeatService, StatusEchoService, DebugService, ForwardingService
+from backend.src.comms.services.imagesservice import ImageService
+from backend.src.comms.services.messageservice import MessageCollectorService
+from backend.src.comms.services.common import HeartbeatService, StatusEchoService, DebugService, ForwardingService
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class ConnectionError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-
+@dataclass
 class UAV:
     """
     stores the connection to the drone
@@ -32,11 +32,12 @@ class UAV:
     gcs_device: string formatted as [protocol:]address[:port]
     """
     device: str
-    gcs_device: str | None
     im_queue: queue.Queue
     msg_queue: queue.Queue
     statustext_queue: queue.Queue
 
+    gcs_device: str | None = None
+    
     event_loop: Thread | None = None
     conn_lock: 'Lock | None' = None
     conn: 'mavutil.mavfile | None' = None
@@ -47,16 +48,6 @@ class UAV:
     command_acks_cbs: list[Callable] = field(default_factory=list)
     status_cbs: list[Callable] = field(default_factory=list)
     last_message_received_cbs: list[Callable] = field(default_factory=list)
-
-    def __init__(self, device: str,
-                 im_queue: queue.Queue,
-                 msg_queue: queue.Queue,
-                 statustext_queue: queue.Queue, gcs_device: str | None = None):
-        self.device = device
-        self.im_queue = im_queue
-        self.msg_queue = msg_queue
-        self.statustext_queue = statustext_queue
-        self.gcs_device = gcs_device
 
     def try_connect(self):
         """
@@ -172,8 +163,6 @@ class UAV:
         Returns true if there is an active connection open.
         """
         return self.conn is not None
-    def set_services(self, services: list[MavlinkService]):
-        self.services = services
 
     def _connectionChanged(self):
         """
