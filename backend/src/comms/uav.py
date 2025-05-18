@@ -1,4 +1,4 @@
-from dataclasses import field, dataclass
+from dataclasses import field
 from typing import Callable
 
 from pymavlink import mavutil
@@ -25,13 +25,14 @@ class ConnectionError(Exception):
         super().__init__(message)
 
 
-@dataclass
 class UAV:
     """
     stores the connection to the drone
-    device: string formatted as [protocol:]address[:port]
+    device: string formatted as [protocol:]address[:port] for uav
+    gcs_device: string formatted as [protocol:]address[:port]
     """
     device: str
+    gcs_device: str | None
     im_queue: queue.Queue
     msg_queue: queue.Queue
     statustext_queue: queue.Queue
@@ -46,6 +47,16 @@ class UAV:
     command_acks_cbs: list[Callable] = field(default_factory=list)
     status_cbs: list[Callable] = field(default_factory=list)
     last_message_received_cbs: list[Callable] = field(default_factory=list)
+
+    def __init__(self, device: str,
+                 im_queue: queue.Queue,
+                 msg_queue: queue.Queue,
+                 statustext_queue: queue.Queue, gcs_device: str | None = None):
+        self.device = device
+        self.im_queue = im_queue
+        self.msg_queue = msg_queue
+        self.statustext_queue = statustext_queue
+        self.gcs_device = gcs_device
 
     def try_connect(self):
         """
@@ -213,9 +224,13 @@ class UAV:
             ImageService(self.commands, self.im_queue),
             StatusEchoService(self._recvStatus),
             MessageCollectorService(self.msg_queue),
-            DebugService(),
-            ForwardingService(self.commands),
+            DebugService()
         ]
+
+        # only add forwarding service if we are using another gcs
+        # (mission planner)
+        if self.gcs_device is not None:
+            services.append(ForwardingService(self.commands, self.gcs_device))
 
         try:
             while self.connected:
