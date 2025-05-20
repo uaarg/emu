@@ -10,7 +10,9 @@ root = argparse.ArgumentParser()
 tools = root.add_subparsers(help="Tools")
 
 mock_uav = tools.add_parser("mock-uav", help="Utility to mock the UAV locally")
-mock_uav.add_argument("--device", type=str, default="tcpin:localhost:14551")
+# tcpin since we want UAV to act as the server, gcs as client
+#   we listen for a tcp connection instead of initializing
+mock_uav.add_argument("--device", type=str, default="udpin:localhost:14551")
 mock_uav.add_argument("-timeout", "--timeout_value", type=int, default=-1)
 mock_uav.set_defaults(_command="mock-uav")
 

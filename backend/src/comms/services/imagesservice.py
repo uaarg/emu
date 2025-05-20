@@ -6,6 +6,7 @@ from pymavlink import mavutil
 
 from .command import Command
 from .common import MavlinkService
+from backend.src.image import Image
 
 
 class ImageService(MavlinkService):
@@ -119,7 +120,9 @@ class ImageService(MavlinkService):
         #print(f"Image saved to {file}")
 
         try:
-            self.im_queue.put(Image(file, 'pigeon/image.txt'))
+            print(file)
+            print(type(file))
+            self.im_queue.put(Image(file, 'data/images/image.txt'))
             self.i += 1
         except Exception as err:
             print(f"ERROR: Failed to parse image\n{err}")

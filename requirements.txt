@@ -1,2 +1,4 @@
 pymavlink==2.4.43
 pyserial==3.5
+pyproj==3.7.1
+shapely==2.1.1
