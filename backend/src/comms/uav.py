@@ -54,8 +54,10 @@ class UAV:
         Will attempt to connect(), but won't fail if that connection cannot be made.
         """
         try:
+            print("connecting")
             self.connect()
         except ConnectionError:
+            print("could not connect")
             pass
 
     def connect(self):
@@ -90,6 +92,8 @@ class UAV:
             self.conn_lock = Lock()
             self.conn = conn
             self._connectionChanged()
+
+            print("connected")
 
             self.thread = Thread(target=lambda: self._runEventLoop(), args=[])
             self.thread.start()
@@ -217,7 +221,7 @@ class UAV:
         ]
 
         # only add forwarding service if we are using another gcs
-        # (mission planner)
+        # gcs, in our case, is mission planner
         if self.gcs_device is not None:
             services.append(ForwardingService(self.commands, self.gcs_device))
 
