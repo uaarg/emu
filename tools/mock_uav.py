@@ -10,8 +10,8 @@ from pymavlink.dialects.v20 import common as mavlink2
 import pymavlink.dialects.v20.all as dialect
 
 from backend.src.comms.services.common import (HeartbeatService, StatusEchoService,
-                                          Command, DebugService,
-                                          MavlinkService)
+                                               Command, DebugService,
+                                               MavlinkService)
 
 
 def disconnect():

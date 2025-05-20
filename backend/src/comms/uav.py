@@ -24,6 +24,7 @@ class ConnectionError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
+
 @dataclass
 class UAV:
     """
@@ -37,7 +38,7 @@ class UAV:
     statustext_queue: queue.Queue
 
     gcs_device: str | None = None
-    
+
     event_loop: Thread | None = None
     conn_lock: 'Lock | None' = None
     conn: 'mavutil.mavfile | None' = None

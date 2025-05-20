@@ -4,10 +4,10 @@ import asyncio
 
 from websockets.asyncio.server import serve
 
+
 class Message:
     type: str
     time: datetime.datetime
-
 
 
 class Connection:
@@ -29,7 +29,6 @@ class Connection:
         raise NotImplementedError()
 
 
-
 class WebhookConnection(Connection):
 
     def __init__(self, port=8001) -> None:
@@ -40,10 +39,9 @@ class WebhookConnection(Connection):
             async for message in websocket:
                 for subscriber in self.subscribers:
                     subscriber(message)
-        except:
+        except Exception:
             print("connection closed")
-           
+
     async def start(self):
         async with serve(self.handler, "", self.port):
             await asyncio.get_running_loop().create_future()  # run forever
- 

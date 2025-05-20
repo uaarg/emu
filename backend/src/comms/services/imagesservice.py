@@ -1,4 +1,4 @@
-# note: the import from 
+# note: the import from
 
 from pymavlink.dialects.v20 import common as mavlink2
 import queue

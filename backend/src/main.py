@@ -1,7 +1,7 @@
 from backend.src.comms.uav import UAV
 import queue
 
-UAV_device = "udpout:localhost:14551" # address for the UAV
+UAV_device = "udpout:localhost:14551"  # address for the UAV
 
 im_queue = queue.Queue()
 msg_queue = queue.Queue()
