@@ -66,10 +66,8 @@ Run the gui using command
 npm run dev
 ```
 
-Contributing
-------------
 ## Contribution Guidlines
-
+------------
 ### Found a Bug or Have a Feature Request?
 * Please create a new issue to report bugs or to request features.
 * Including steps to reproduce the bug or a clear description of the feature.
