@@ -68,8 +68,16 @@ npm run dev
 
 Contributing
 ------------
-A few notes about contributing:
+##Contribution Guidlines
 
+###Found a Bug or Have a Feature Request?
+* Please create a new issue to report bugs or to request features.
+* Including steps to reproduce the bug or a clear description of the feature.
+
+###When contributing
+* Pick an open issue. 
+* Create a new branch for your work using an appropriate name. 
+* Make your changes, open a Pull Request to the main branch of this repository. Be sure to link the issue it resolves. 
 * Please feel free to ask any question at any time.
 * Please feel free to ask for help.
 * Please follow pep8 for style: https://www.python.org/dev/peps/pep-0008/
