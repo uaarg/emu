@@ -34,8 +34,8 @@ Reload your shell after running the install script.
 
 For Windows (powershell) run the following commands.
 ```
-npm install
-npm install -D tailwindcss postcss autoprefixer
+npm install --prefix ./frontend/
+npm install -D tailwindcss postcss autoprefixer --prefix ./frontend/
 npm i -D @types/node
 ```
 
@@ -63,7 +63,7 @@ Running Emu
 --------------
 Run the gui using command
 ```
-npm run dev
+npm run dev --prefix ./frontend/
 ```
 
 ## Contribution Guidlines
