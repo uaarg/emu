@@ -23,10 +23,11 @@ function UAVStatusComponent({ label, value }) {
   );
 }
 
+
 function UAVStatus() {
   return (
     <>
-      <Card className="max-w-xs m-4">
+      <Card className="w-full h-full shadow-2xl">
         <CardHeader>
           <CardTitle>UAV</CardTitle>
         </CardHeader>
@@ -42,15 +43,55 @@ function UAVStatus() {
         </CardFooter>
       </Card>
     </>
-  )
+  );
 }
+
+
+function ImageLayout() {
+  return (
+    <div className="w-full h-full">
+      <Card className="w-full h-full shadow-2xl flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-center w-full">
+            Images
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-grow flex items-center justify-center box-border">
+          <img src="sample2.png"
+            alt="no image"
+            className="object-contain max-w-full max-h-full"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
+function RightSide() {
+  return (
+    <>
+      <Card className="w-full h-full shadow-2xl">
+      </Card>
+    </>
+  );
+}
+
 
 function App() {
   return (
-    <>
-      <UAVStatus />
-    </>
-    )
+    <div className="flex  w-screen h-screen">
+      <div className="w-[250px] flex-shrink-0 flex-grow-0 p-4">
+        <UAVStatus/>
+      </div>
+      <div className="flex-grow h-full flex items-start justify-center p-4">
+        <ImageLayout/>
+      </div>
+      <div className="w-[250px] flex-shrink-0 flex-grow-0 p-4">
+        <RightSide/>
+      </div>
+    </div>
+    );
 }
 
 export default App
