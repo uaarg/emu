@@ -32,11 +32,10 @@ For linux or MacOS
 ```
 Reload your shell after running the install script.
 
-For Windows (powershell) run the following commands.
+For Windows (powershell) run the following commands from the base directory (emu).
 ```
 npm install --prefix ./frontend/
 npm install -D tailwindcss postcss autoprefixer --prefix ./frontend/
-npm i -D @types/node
 ```
 
 Setup the python virtual environment (do this once)
@@ -61,9 +60,13 @@ pip install -r requirements.txt
 
 Running Emu
 --------------
-Run the gui using command
+From the base project directory run the gui using command
 ```
 npm run dev --prefix ./frontend/
+```
+or inside of the frontend directory run:
+```
+npm run dev
 ```
 
 ## Contribution Guidlines
