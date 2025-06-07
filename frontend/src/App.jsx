@@ -57,7 +57,7 @@ function ImageLayout() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-grow flex items-center justify-center box-border">
-          <img src="sample2.png"
+          <img src="sample3.png"
             alt="no image"
             className="object-contain max-w-full max-h-full"
           />
@@ -80,14 +80,14 @@ function RightSide() {
 
 function App() {
   return (
-    <div className="flex  w-screen h-screen">
-      <div className="w-[250px] flex-shrink-0 flex-grow-0 p-4">
+    <div className="flex w-screen h-screen">
+      <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
         <UAVStatus/>
       </div>
-      <div className="flex-grow h-full flex items-start justify-center p-4">
+      <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
         <ImageLayout/>
       </div>
-      <div className="w-[250px] flex-shrink-0 flex-grow-0 p-4">
+      <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
         <RightSide/>
       </div>
     </div>
