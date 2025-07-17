@@ -10,6 +10,8 @@ import {
 } from './components/ui/card'
 
 import { Switch } from "./components/ui/switch"
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table.jsx';
+import { ScrollArea } from './components/ui/scroll-area';
 
 
 
@@ -57,7 +59,7 @@ function App() {
                 break;
             case "log":
                 console.log("log");
-                setLogs((prev) => [...prev, {message: json.message, severity: json.severity}]);
+                setLogs((prev) => [{message: json.message, severity: json.severity}, ...prev]);
                 break;
         };
     }, []);
@@ -77,7 +79,7 @@ function App() {
             <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
                 <ImageLayout filename={imageName}/>
             </div>
-            <div className="w-[400px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
+            <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
                 <LogView logs={logs}/>
             </div>
         </div>
@@ -156,19 +158,46 @@ function ImageLayout({filename}) {
 
 
 function LogView({logs}) {
-  return (
-    <>
-      <Card className="w-full h-full shadow-2xl">
-            <CardHeader>
-                <CardTitle className="text-center w-full">
-                    Logs
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-            </CardContent>
-      </Card>
-    </>
-  );
+    return (
+        <>
+          <Card className="w-full h-full shadow-2xl flex flex-col">
+                <CardHeader>
+                    <CardTitle className="text-center w-full">
+                        Logs
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col flex-grow min-h-0">
+                    <ScrollArea className="flex-grow min-h-0">
+                    <table className="w-full table-auto">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[80px]"> Severity </TableHead>
+                            <TableHead> Message </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {logs.map((log, index) => {
+                            let rowClass = "";
+                            if (log.severity == "warning") {
+                                rowClass = "bg-red-100";
+                            } else if (log.severity == "error") {
+                                rowClass = "bg-orange-100";
+                            }
+
+                            return (
+                            <TableRow key={index} className={rowClass}>
+                                <TableCell className="w-[80px]"> {log.severity} </TableCell>
+                                <TableCell> {log.message} </TableCell>
+                            </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </table>
+                </ScrollArea>
+                </CardContent>
+            </Card>
+        </>
+    );
 }
 
 
