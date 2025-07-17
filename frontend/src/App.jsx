@@ -1,10 +1,10 @@
-import { useState } from 'react'
-
+import { useBackendConnection } from './comms.js';
+import { useState, useCallback } from 'react';
 import {
     Card,
     CardTitle,
     CardContent,
-    CardDescription,
+    // CardDescription,
     CardFooter,
     CardHeader,
 } from './components/ui/card'
@@ -12,7 +12,80 @@ import {
 import { Switch } from "./components/ui/switch"
 
 
-function UAVStatusComponent({ label, value }) {
+
+function App() {
+    const [uavStatus, setUavStatus] = useState({
+        connection: "no",
+        mode: "null",
+        imageCount: 0,
+        timeSinceMessage: 0
+    });
+    const [imageName, setImageName] = useState("");
+    const [logs, setLogs] = useState([]);
+    
+    const messageHandler = useCallback((json) => {
+        switch (json.type) {
+            case "status":
+                switch (json.status) {
+                    case "new_msg":
+                        break;
+                   case "mode":
+                        setUavStatus(prev => ({
+                            ...prev,
+                            mode: json.value
+                        }));
+                        break;
+                    case "connection":
+                        setUavStatus(prev => ({
+                            ...prev,
+                            connection: json.value
+                        }));
+                        break;
+                    case "new_img":
+                        setUavStatus(prev => ({
+                            ...prev,
+                            imageCount: prev.imageCount + 1
+                        }));
+                        setImageName(json.value);
+                        break;
+                };
+                break;
+            case "load":
+                console.log("loading data");
+                setUavStatus(json.uavStatus);
+                setImageName(json.imageName);
+                break;
+            case "log":
+                console.log("log");
+                setLogs((prev) => [...prev, {message: json.message, severity: json.severity}]);
+                break;
+        };
+    }, []);
+
+    const {sendMessage} = useBackendConnection({
+        hostname: 'localhost',
+        port: 1920,
+        onMessage: messageHandler
+    });
+    
+
+    return (
+        <div className="flex w-screen h-screen">
+            <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
+                <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
+            </div>
+            <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
+                <ImageLayout filename={imageName}/>
+            </div>
+            <div className="w-[400px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
+                <LogView logs={logs}/>
+            </div>
+        </div>
+    );
+}
+
+
+function UAVStatusComponent({label = "", value}) {
     return (
         <div className="flex justify-between items-center space-x-2">
             <p className="basis-1/2">{label}</p>
@@ -24,7 +97,8 @@ function UAVStatusComponent({ label, value }) {
 }
 
 
-function UAVStatus() {
+
+function UAVStatus({status, sendFunc}) {
     return (
         <>
             <Card className="w-full h-full shadow-2xl">
@@ -32,13 +106,26 @@ function UAVStatus() {
                     <CardTitle>UAV</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <UAVStatusComponent label="Connected" value="no" />
-                    <UAVStatusComponent label="Time since last message" value="0 sec" />
-                    <UAVStatusComponent label="Current mode" value="Idle" />
-                    <UAVStatusComponent label="Pictures captured" value="0" />
+                    <UAVStatusComponent label="Connected" value={status.connection} />
+                    <UAVStatusComponent label="Time since last message" value={`${status.timeSinceMessage} sec`} />
+                    <UAVStatusComponent label="Current mode" value={status.mode} />
+                    <UAVStatusComponent label="Pictures received" value={status.imageCount} />
                 </CardContent>
                 <CardFooter className="flex justify-center space-x-4">
-                    <Switch />
+                    <Switch
+                        checked={status.connection === "yes"}
+                        onCheckedChange={ (checked) => {
+                                console.log("tried to change connection");
+                                if (typeof sendFunc === "function") {
+                                    sendFunc(JSON.stringify({
+                                        "type": "command",
+                                        "command": checked ? "connect" : "disconnect"
+                                    }))
+                                }
+                            }
+                        }
+
+                    />
                     <p> Connect </p>
                 </CardFooter>
             </Card>
@@ -47,7 +134,7 @@ function UAVStatus() {
 }
 
 
-function ImageLayout() {
+function ImageLayout({filename}) {
     return (
         <div className="w-full h-full">
             <Card className="w-full h-full shadow-2xl flex flex-col">
@@ -57,7 +144,7 @@ function ImageLayout() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center box-border">
-                    <img src="sample3.png"
+                    <img src={filename}
                         alt="no image"
                         className="object-contain max-w-full max-h-full"
                     />
@@ -68,30 +155,21 @@ function ImageLayout() {
 }
 
 
-function RightSide() {
+function LogView({logs}) {
   return (
     <>
       <Card className="w-full h-full shadow-2xl">
+            <CardHeader>
+                <CardTitle className="text-center w-full">
+                    Logs
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+            </CardContent>
       </Card>
     </>
   );
 }
 
-
-function App() {
-    return (
-        <div className="flex w-screen h-screen">
-            <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                <UAVStatus/>
-            </div>
-            <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                <ImageLayout/>
-            </div>
-            <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                <RightSide/>
-            </div>
-        </div>
-    );
-}
 
 export default App
