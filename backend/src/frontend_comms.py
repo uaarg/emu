@@ -114,7 +114,7 @@ if __name__ == "__main__":
                 "imageCount": "2",
                 "timeSinceMessage": "3"
                 },
-            "imageName": "sample1.png"
+            "imageName": "res/sample1.jpg"
         }
         conn.send_msg(json.dumps(loadCurrent))
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     new_photo = {
         "type": "status",
         "status": "new_img",
-        "value": "sample2.png"
+        "value": "res/sample2.jpg"
     }
     conn.send_msg(json.dumps(new_photo))
     time.sleep(1)

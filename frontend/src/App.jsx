@@ -22,7 +22,7 @@ function App() {
         imageCount: 0,
         timeSinceMessage: 0
     });
-    const [imageName, setImageName] = useState("");
+    const [imageName, setImageName] = useState("res/sample1.jpg");
     const [logs, setLogs] = useState([]);
     
     const messageHandler = useCallback((json) => {
@@ -30,6 +30,10 @@ function App() {
             case "status":
                 switch (json.status) {
                     case "new_msg":
+                        setUavStatus(prev => ({
+                            ...prev,
+                            timeSinceMessage: 0
+                        }));
                         break;
                    case "mode":
                         setUavStatus(prev => ({
@@ -142,7 +146,7 @@ function ImageLayout({filename}) {
             <Card className="w-full h-full shadow-2xl flex flex-col">
                 <CardHeader>
                     <CardTitle className="text-center w-full">
-                        Images
+                        Current Image
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center box-border">
