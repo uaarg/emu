@@ -1,6 +1,7 @@
 from backend.src.comms.uav import UAV
 from backend.src.frontend_comms import FrontEnd
 import queue
+import json
 
 UAV_device = "udpout:localhost:14551"  # address for the UAV
 
@@ -16,13 +17,35 @@ uav.try_connect()
 
 # connect to frontend on localhost:14555
 frontend = FrontEnd("127.0.0.1", 14555)
+
+def onConnect():
+    loadCurrent = {
+        "type": "load",
+        "uavStatus": {
+            "connection": "no",
+            "mode": "test",
+            "imageCount": "2",
+            "timeSinceMessage": "3"
+            },
+        "imageName": "res/sample1.jpg"
+    }
+    frontend.send_msg(json.dumps(loadCurrent))
+
+frontend.onConnect = onConnect
 frontend.start_comms()
 
 
-# where UI communication will happen
-# UAV will be connected in a different thread
 
+# middle ground between drone and frontend
+# facilite communication between the two
 while True:
+    # get message from frontend
+    message = frontend.get_msg()
+    if (message != ""):
+        pass
+
+
+    # get messages from drone
     pass
 
 uav.disconnect()

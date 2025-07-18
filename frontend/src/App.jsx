@@ -22,7 +22,7 @@ function App() {
         imageCount: 0,
         timeSinceMessage: 0
     });
-    const [imageName, setImageName] = useState("res/sample1.jpg");
+    const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
     
     const messageHandler = useCallback((json) => {
@@ -70,7 +70,7 @@ function App() {
 
     const {sendMessage} = useBackendConnection({
         hostname: 'localhost',
-        port: 1920,
+        port: 14555,
         onMessage: messageHandler
     });
     
