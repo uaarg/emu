@@ -14,6 +14,8 @@ class FrontEnd:
     def __init__(self, hostname: str, port: int):
         self.hostname = hostname
         self.port = port
+
+        self.isConnected = False
         # set default onConnect to be a no-op
         self.onConnect = lambda: None
 
@@ -43,7 +45,11 @@ class FrontEnd:
     # calls handler with the connection as an argument, when handler terminates
     # connection is closed --websockets docs
     async def _handler(self, websocket: ServerConnection):
-        print(f"connected to {websocket.remote_address[0]}")
+        if self.isConnected:
+            print("Connection refused: already connected")
+            return
+        self.isConnected = True
+        print("Connected to client")
         
         # specified function to do on startup, likely for sending UAV status
         self.onConnect()
@@ -59,6 +65,8 @@ class FrontEnd:
         )
         for task in pending:
             task.cancel()
+        print("Client disconnected")
+        self.isConnected = False
 
     
     # what to do when socket recieves a message
