@@ -5,14 +5,12 @@ from pymavlink import mavutil
 from threading import Lock, Thread
 import serial
 import time
-import logging
 import queue
 
 from backend.src.comms.services.imagesservice import ImageService
 from backend.src.comms.services.messageservice import MessageCollectorService
 from backend.src.comms.services.common import HeartbeatService, StatusEchoService, DebugService, ForwardingService
 
-logger = logging.getLogger(__name__)
 
 
 class ConnectionError(Exception):
@@ -20,9 +18,9 @@ class ConnectionError(Exception):
     An error which may occur when constructing or communicating with a socket
     via the UAVSocket class.
     """
-
     def __init__(self, message):
         super().__init__(message)
+
 
 
 @dataclass
@@ -33,32 +31,35 @@ class UAV:
     gcs_device: string formatted as [protocol:]address[:port]
     """
     device: str
-    im_queue: queue.Queue
-    msg_queue: queue.Queue
-    statustext_queue: queue.Queue
-
     gcs_device: str | None = None
+    
+    # new data from drone to us
+    im_queue: queue.Queue = queue.Queue()
+    msg_queue: queue.Queue = queue.Queue()
+    statustext_queue: queue.Queue = queue.Queue()
+    
+    # commands to drone from us
+    commands: queue.Queue = queue.Queue()
 
     event_loop: Thread | None = None
-    conn_lock: 'Lock | None' = None
-    conn: 'mavutil.mavfile | None' = None
-
-    commands: queue.Queue = queue.Queue()
+    conn_lock: Lock | None = None
+    conn: mavutil.mavfile | None = None
 
     conn_changed_cbs: list[Callable] = field(default_factory=list)
     command_acks_cbs: list[Callable] = field(default_factory=list)
     status_cbs: list[Callable] = field(default_factory=list)
     last_message_received_cbs: list[Callable] = field(default_factory=list)
 
+
     def try_connect(self):
         """
         Will attempt to connect(), but won't fail if that connection cannot be made.
         """
         try:
-            print("connecting")
+            print("connecting to UAV")
             self.connect()
         except ConnectionError:
-            print("could not connect")
+            print("could not connect to UAV")
             pass
 
     def connect(self):
@@ -71,7 +72,7 @@ class UAV:
          - The drone could not be contacted
         """
         if self.conn is not None:
-            raise ConnectionError("Connection already exists")
+            raise ConnectionError("UAV connection already exists")
         try:
             is_serial_device = "usb" in self.device.lower() or "com" in self.device.lower()
             if is_serial_device:
@@ -82,19 +83,19 @@ class UAV:
                 conn: mavutil.mavfile = mavutil.mavlink_connection(
                     self.device, source_system=255, source_component=1)
         except ConnectionRefusedError as err:
-            raise ConnectionError(f"Connection refused: {err}")
+            raise ConnectionError(f"UAV connection refused: {err}")
         except ConnectionResetError as err:
-            raise ConnectionError(f"Connection reset: {err}")
+            raise ConnectionError(f"UAV connection reset: {err}")
         except ConnectionAbortedError as err:
-            raise ConnectionError(f"Connection aborted: {err}")
+            raise ConnectionError(f"UAV connection aborted: {err}")
         except serial.SerialException as err:
-            raise ConnectionError(f"Connection failed: {err}")
+            raise ConnectionError(f"UAV connection failed: {err}")
         else:
             self.conn_lock = Lock()
             self.conn = conn
             self._connectionChanged()
 
-            print("connected")
+            print("UAV connected")
 
             self.thread = Thread(target=lambda: self._runEventLoop(), args=[])
             self.thread.start()
