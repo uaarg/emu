@@ -232,7 +232,7 @@ class UAV:
                 for service in services:
                     service.tick()
 
-                while msg := self.conn.recv_match(blocking=False):
+                while self.connected and (msg := self.conn.recv_match(blocking=False)):
                     for service in services:
                         service.recv_message(msg)
                     self._messageReceived()
