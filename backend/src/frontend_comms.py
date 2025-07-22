@@ -7,10 +7,11 @@ import threading
 
 
 
-
-# class to handle communicating with the javascript frontend
-# uses websockets to send and recieve messages
 class FrontEnd:
+    """
+    class to handle communicating with the javascript frontend
+    uses websockets to send and recieve messages
+    """
     def __init__(self, hostname: str, port: int):
         self.hostname = hostname
         self.port = port
@@ -23,35 +24,43 @@ class FrontEnd:
         self._send_queue = queue.Queue()
 
     
-    # create background thread and start connection
     def start_comms(self):
+        """
+        creates a background thread starting communication to frontend
+        """
         thread = threading.Thread(target=self._start_event_loop, daemon=True)
         thread.start()
 
  
     # start asyncio connection loop
     def _start_event_loop(self):
+        """
+        starts connection loop with asyncio
+        """
         asyncio.run(self._connect())
 
 
-    # wait for clients to connect, once they do, serve forever
     async def _connect(self):
-        # serve starts the websocket server
+        """
+        starts the server and waits for clients to connect. Once they do,
+        self._handler handles each client
+        """
         async with serve(self._handler, self.hostname, self.port) as server:
             await server.serve_forever()
     
 
-    # coroutine to manage a connection, when a client connnects websockets
-    # calls handler with the connection as an argument, when handler terminates
-    # connection is closed --websockets docs
     async def _handler(self, websocket: ServerConnection):
+        """
+        manages a single client connection. websocket represents the specific client connection.
+        When a client disconnects the handler stops. This does not stop the server
+        """
         if self.isConnected:
             print("Connection refused: already connected")
             return
         self.isConnected = True
         print("Connected to client")
         
-        # specified function to do on startup, likely for sending UAV status
+        # specified function to do on startup, likely for sending UAV status in bulk
         self.onConnect()
 
         # exit and close websocket as soon as either task terminates
@@ -69,8 +78,10 @@ class FrontEnd:
         self.isConnected = False
 
     
-    # what to do when socket recieves a message
     async def _consumer_handler(self, websocket: ServerConnection):
+        """
+        handles when socket receives a message from the client
+        """
         try:
             async for message in websocket:
                 # ensure putting does not block event loop
@@ -79,8 +90,10 @@ class FrontEnd:
             print("frontend websocket connection lost")
 
 
-    # what to do when we send a message
     async def _producer_handler(self, websocket: ServerConnection):
+        """
+        handles sending messages to the client
+        """
         while True:
             try:
                 # ensure getting does not block event loop
