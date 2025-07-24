@@ -3,9 +3,7 @@
 - update time since last message
 ```
 {
-    "type": "status",
-    "status": "new_msg",
-    "value": "message contents"
+    "type": "new_msg",
 }
 ```
 - set current mode to idle
@@ -42,6 +40,7 @@
         "mode": "",
         "imageCount": "",
         "timeSinceMessage": ""
+        "logs": [...{"severity": "normal..", "message": "msg string"}]
     },
     "imageName": ""
 }
