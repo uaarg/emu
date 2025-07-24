@@ -65,7 +65,8 @@ def incomingLogCb(log):
 def lastMsgRecvCb():
     uavStatus.time_since_msg = 0
     message = {
-        "type": "new_msg"
+        "type": "status",
+        "value": "new_msg"
     }
     frontend.send_msg(json.dumps(message))
 

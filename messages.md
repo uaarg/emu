@@ -3,6 +3,7 @@
 - update time since last message
 ```
 {
+    "type": "status",
     "type": "new_msg",
 }
 ```

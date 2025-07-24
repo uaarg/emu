@@ -23,6 +23,7 @@ def send_image(conn, img_num):
     """Sends a test image to the GUI"""
     
     image_path = ["frontend/res/sample1.jpg", "frontend/res/sample2.jpg"][img_num % 2]
+    print(image_path)
 
     # Compress image
     im = Image.open(image_path)

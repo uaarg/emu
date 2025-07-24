@@ -1,5 +1,5 @@
 import { useBackendConnection } from './comms.js';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
     Card,
     CardTitle,
@@ -32,7 +32,7 @@ function App() {
                     case "new_msg":
                         setUavStatus(prev => ({
                             ...prev,
-                            timeSinceMessage: 0
+                            timeSinceMessage: Number(0)
                         }));
                         break;
                    case "mode":
@@ -50,7 +50,7 @@ function App() {
                     case "new_img":
                         setUavStatus(prev => ({
                             ...prev,
-                            imageCount: prev.imageCount + 1
+                            imageCount: Number(prev.imageCount) + 1
                         }));
                         setImageName(json.value);
                         break;
@@ -74,6 +74,16 @@ function App() {
         onMessage: messageHandler
     });
     
+    // make our time since last message actually go up
+    useEffect(() => {
+    const interval = setInterval(() => {
+        setUavStatus(prev => ({
+            ...prev,
+            timeSinceMessage: Number(prev.timeSinceMessage) + 1
+        }));
+    }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <div className="flex w-screen h-screen">
@@ -150,7 +160,7 @@ function ImageLayout({filename}) {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center box-border">
-                    <img src={filename}
+                    <img src={`${filename}?t=${Date.now()}`}
                         alt="no image"
                         className="object-contain max-w-full max-h-full"
                     />
