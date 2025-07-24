@@ -19,10 +19,10 @@ def disconnect():
     sys.exit(1)
 
 
-def send_image(conn):
+def send_image(conn, img_num):
     """Sends a test image to the GUI"""
-
-    image_path = "data/images/test_image.JPG"
+    
+    image_path = ["frontend/res/sample1.jpg", "frontend/res/sample2.jpg"][img_num % 2]
 
     # Compress image
     im = Image.open(image_path)
@@ -113,7 +113,7 @@ class DebugRandomStatusService(MavlinkService):
         self.last_send = time.time()
 
     def tick(self):
-        if time.time() - self.last_send > 5:
+        if time.time() - self.last_send > 3:
             messages = [
                 'This is a random message',
                 'Hello there',
@@ -141,6 +141,7 @@ def main(device: str, timeout: int):
     conn = mavutil.mavlink_connection(device,
                                       source_system=1,
                                       source_component=2)
+    flag = True
     connected = True
 
     commands = queue.Queue()
@@ -154,7 +155,7 @@ def main(device: str, timeout: int):
     commands.put(Command.statustext("Started UAV Mocker (from %s)" % device))
 
     image_count = 0
-    flag = True
+    time_since_img = 0
     while connected:
         for service in services:
             service.tick()
@@ -169,17 +170,18 @@ def main(device: str, timeout: int):
             conn.write(command.encode(conn))
         except queue.Empty:
             pass
-
         current_time = time.time()
-        if ((current_time - start_time) > 10) and image_count < 1:
-            print("sending an image")
-            send_image(conn)
+        if (current_time - time_since_img) > 5:
+            print("sending image")
+            send_image(conn, image_count)
             image_count += 1
-
-        if ((current_time - start_time) > 12) and flag:
+            time_since_img = time.time()
+        
+        if (current_time - start_time) > 4 and flag:
             print("testing debugging service")
             mock_debug(conn)
             flag = False
+
 
         # TODO: we should be using some type of select utility to avoid burning a CPU core
         time.sleep(0.0001)  # s = 100us
