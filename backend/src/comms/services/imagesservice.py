@@ -1,5 +1,6 @@
 # note: the import from
 
+from typing import Callable
 from pymavlink.dialects.v20 import common as mavlink2
 import queue
 from pymavlink import mavutil
@@ -41,11 +42,12 @@ class ImageService(MavlinkService):
     recving_img: bool
     expected_packets: int | None
 
-    def __init__(self, commands: queue.Queue, im_queue: queue.Queue):
+    def __init__(self, commands: queue.Queue, im_queue: queue.Queue, img_recv: Callable):
         self.i = 0
         self.image_packets = dict()
         self.commands = commands
         self.im_queue = im_queue
+        self.img_recv = img_recv
 
         self.recving_img = False
         self.expected_packets = False
@@ -127,16 +129,9 @@ class ImageService(MavlinkService):
         with open(file, "bw") as image_file:
             image_file.write(image)
             image_file.flush()
-        return file
-        #print(f"Image saved to {file}")
-
-        # try:
-        #     print(file)
-        #     print(type(file))
-        #     self.im_queue.put(Image(file, 'data/images/image.txt'))
-        #     self.i += 1
-        # except Exception as err:
-        #     print(f"ERROR: Failed to parse image\n{err}")
+        # this is a bit hacky but we need the images in the frontend directory to show them
+        file = "/".join(file.split("/")[1:])
+        self.img_recv(file)
 
     def image_received(self):
         self.recving_img = False

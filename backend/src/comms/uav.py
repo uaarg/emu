@@ -49,6 +49,7 @@ class UAV:
     command_acks_cbs: list[Callable] = field(default_factory=list)
     status_cbs: list[Callable] = field(default_factory=list)
     last_message_received_cbs: list[Callable] = field(default_factory=list)
+    img_recv_cbs: list[Callable] = field(default_factory=list)
 
 
     def try_connect(self):
@@ -145,6 +146,13 @@ class UAV:
         Will be called with a dictionary of the fields and values.
         """
         self.status_cbs.append(cb)
+    
+    def addUAVImageRecvCb(self, cb):
+        """
+        add a function to be called when the UAV sends an image.
+        will be called with a string for the filepath
+        """
+        self.img_recv_cbs.append(cb)
 
     def addCommandAckedCb(self, cb):
         """
@@ -192,7 +200,7 @@ class UAV:
         Notify all listeners that a command was received.
         """
         for cb in self.last_message_received_cbs:
-            cb(True)
+            cb()
 
     def _recvStatus(self, status):
         """
@@ -202,6 +210,13 @@ class UAV:
         self.statustext_queue.put(status)
         for cb in self.status_cbs:
             cb(status)
+
+    def _imageReceived(self, filename):
+        """
+        notify all listeners that an image was received.
+        """
+        for cb in self.img_recv_cbs:
+            cb(filename)
 
     def _runEventLoop(self):
         assert self.conn is not None
@@ -216,7 +231,7 @@ class UAV:
 
         services = [
             HeartbeatService(self.commands, self.disconnect),
-            ImageService(self.commands, self.im_queue),
+            ImageService(self.commands, self.im_queue, self._imageReceived),
             StatusEchoService(self._recvStatus),
             MessageCollectorService(self.msg_queue),
             DebugService()
