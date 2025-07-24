@@ -287,30 +287,3 @@ class ImageCrop:
     @property
     def bottom_right(self):
         return (self.max_x, self.max_y)
-
-
-class Watcher:
-    # Empty watcher class
-    # This will have to be replaced by something else as we no longer use pyinotify
-
-    def __init__(self):
-        # this is still defined as some components rely on these variables
-        self.queue = queue.Queue()
-        self.pending_images = {}
-        self.pending_infos = {}
-
-    # no-op old Watcher class methods
-    def createImage(self, image_pathname, info_pathname):
-        pass
-
-    def loadExistingImages(self, path):
-        pass
-
-    def setDirectory(self, path):
-        pass
-
-    def start(self):
-        pass
-
-    def stop(self):
-        pass
