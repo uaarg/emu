@@ -56,6 +56,7 @@ class FrontEnd:
         """
         if self.isConnected:
             print("Connection refused: already connected")
+            await websocket.close(code=1000, reason="Already connected")
             return
         self.isConnected = True
         print("Connected to client")
@@ -200,3 +201,5 @@ if __name__ == "__main__":
     }
     conn.send_msg(json.dumps(connection_unsuccessful))
     time.sleep(1)
+    while True:
+        pass
