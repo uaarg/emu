@@ -1,21 +1,28 @@
 /*
  * react hook to handle the websocket connection
- * needs to handle incoming and send to correct thing
- * needs to be able to send json to server
- * uses WebSocket
+ * handles incoming and receiving json pertaining
+ * to user's actions and uav updates
  */
 
 
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useCallback} from 'react';
 
 
 export function useBackendConnection({hostname, port, onMessage}) {
+    // useRef allows us to remember information across renders without causing a re-render
+    // we could use global variables.. i've heard that's good practice
     const socketRef = useRef(null);
-    useEffect(() => {
+    const reconnectTimeoutRef = useRef(null);
+
+    const connect = useCallback(() => {
+        
         const socket = new WebSocket(`ws://${hostname}:${port}`);
         socketRef.current = socket;
-
+        
         socket.onopen = () => {
+            if (reconnectTimeoutRef.current !== null) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
             console.log("websocket to backend opened");
         };
 
@@ -32,16 +39,40 @@ export function useBackendConnection({hostname, port, onMessage}) {
             }
         };
 
+        socket.onerror = (event) => {
+            console.warn("websocket error", event);
+        }
+
         socket.onclose = () => {
             console.log("websocket to backend closed");
+            socketRef.current = null;
+            
+            // try to reconnect after 1 second
+            reconnectTimeoutRef.current = setTimeout(() => {
+                console.log("attempting to reconnect to backend");
+                connect();
+            }, 1000);
         };
+    }, [hostname, port, onMessage]);
+
+    // need useRef because without it this will be run on every render
+    useEffect(() => {
+        connect()
+
         return () => {
-            socket.close();
+            if (socketRef.current !== null) {
+                socketRef.current.close();
+                socketRef.current = null;
+            }
+            if (reconnectTimeoutRef.current !== null) {
+                clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+            }
         };
-    }, [hostname, port, onMessage]); // dependencies; if these change re-render
+    }, [connect]); // dependencies; if these change re-render
     
     // takes JSON and turns it into a string and sends to socket
-    const send = (message) => {
+    const send = useCallback((message) => {
         if (socketRef.current !== null) {
             if (socketRef.current.readyState == WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify(message));
@@ -51,7 +82,7 @@ export function useBackendConnection({hostname, port, onMessage}) {
         } else {
             console.warn("socketRef is null");
         }
-    };
+    }, []);
 
     return send;
 
