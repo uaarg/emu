@@ -1,10 +1,13 @@
 # note: the import from
 
+from typing import Callable
 from pymavlink.dialects.v20 import common as mavlink2
 import queue
 from pymavlink import mavutil
 
-from .command import Command
+import os
+
+from backend.src.comms.services.command import Command
 from .common import MavlinkService
 from backend.src.image import Image
 
@@ -37,17 +40,24 @@ class ImageService(MavlinkService):
     im_queue: queue.Queue
 
     recving_img: bool
-    expected_packets: int
+    expected_packets: int | None
 
-    def __init__(self, commands: queue.Queue, im_queue: queue.Queue):
+    def __init__(self, commands: queue.Queue, im_queue: queue.Queue, img_recv: Callable):
         self.i = 0
         self.image_packets = dict()
         self.commands = commands
         self.im_queue = im_queue
+        self.img_recv = img_recv
 
         self.recving_img = False
         self.expected_packets = False
         self.image_bytes = 0
+
+        base_dir = "frontend/tmp/"
+        os.makedirs(base_dir, exist_ok=True)
+        num_dirs = len(os.listdir(base_dir))
+        self.base_img_dir = f"frontend/tmp/{num_dirs}"
+        os.makedirs(self.base_img_dir)
 
     def begin_recv_image(self):
         self.image_packets.clear()
@@ -77,7 +87,9 @@ class ImageService(MavlinkService):
             )
             self.request_missing_packets()
         else:
-            self.assemble_image()
+            img_file = self.assemble_image()
+            if img_file is not None:
+                self.im_queue.put(img_file)
             self.image_received()
 
     def request_missing_packets(self):
@@ -101,7 +113,7 @@ class ImageService(MavlinkService):
                 0)
             self.commands.put(Command(req_packet))
 
-    def assemble_image(self):
+    def assemble_image(self) -> str | None:
         # image transmission is complete, collect chunks into an image
         image = bytes()
         packet_nos = self.image_packets.keys()
@@ -113,19 +125,13 @@ class ImageService(MavlinkService):
             image += bytes(packet.data)
 
         image = image[:self.image_bytes]
-        file = f"data/images/image{self.i}.jpg"
+        file = f"{self.base_img_dir}/{self.i}.jpg"
         with open(file, "bw") as image_file:
             image_file.write(image)
             image_file.flush()
-        #print(f"Image saved to {file}")
-
-        try:
-            print(file)
-            print(type(file))
-            self.im_queue.put(Image(file, 'data/images/image.txt'))
-            self.i += 1
-        except Exception as err:
-            print(f"ERROR: Failed to parse image\n{err}")
+        # this is a bit hacky but we need the images in the frontend directory to show them
+        file = "/".join(file.split("/")[1:])
+        self.img_recv(file)
 
     def image_received(self):
         self.recving_img = False

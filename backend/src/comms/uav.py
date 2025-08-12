@@ -5,14 +5,12 @@ from pymavlink import mavutil
 from threading import Lock, Thread
 import serial
 import time
-import logging
 import queue
 
 from backend.src.comms.services.imagesservice import ImageService
 from backend.src.comms.services.messageservice import MessageCollectorService
 from backend.src.comms.services.common import HeartbeatService, StatusEchoService, DebugService, ForwardingService
 
-logger = logging.getLogger(__name__)
 
 
 class ConnectionError(Exception):
@@ -20,9 +18,9 @@ class ConnectionError(Exception):
     An error which may occur when constructing or communicating with a socket
     via the UAVSocket class.
     """
-
     def __init__(self, message):
         super().__init__(message)
+
 
 
 @dataclass
@@ -33,32 +31,36 @@ class UAV:
     gcs_device: string formatted as [protocol:]address[:port]
     """
     device: str
-    im_queue: queue.Queue
-    msg_queue: queue.Queue
-    statustext_queue: queue.Queue
-
     gcs_device: str | None = None
+    
+    # new data from drone to us
+    im_queue: queue.Queue = queue.Queue()
+    msg_queue: queue.Queue = queue.Queue()
+    statustext_queue: queue.Queue = queue.Queue()
+    
+    # commands to drone from us
+    commands: queue.Queue = queue.Queue()
 
     event_loop: Thread | None = None
-    conn_lock: 'Lock | None' = None
-    conn: 'mavutil.mavfile | None' = None
-
-    commands: queue.Queue = queue.Queue()
+    conn_lock: Lock | None = None
+    conn: mavutil.mavfile | None = None
 
     conn_changed_cbs: list[Callable] = field(default_factory=list)
     command_acks_cbs: list[Callable] = field(default_factory=list)
     status_cbs: list[Callable] = field(default_factory=list)
     last_message_received_cbs: list[Callable] = field(default_factory=list)
+    img_recv_cbs: list[Callable] = field(default_factory=list)
+
 
     def try_connect(self):
         """
         Will attempt to connect(), but won't fail if that connection cannot be made.
         """
         try:
-            print("connecting")
+            print("connecting to UAV")
             self.connect()
         except ConnectionError:
-            print("could not connect")
+            print("could not connect to UAV")
             pass
 
     def connect(self):
@@ -71,7 +73,7 @@ class UAV:
          - The drone could not be contacted
         """
         if self.conn is not None:
-            raise ConnectionError("Connection already exists")
+            raise ConnectionError("UAV connection already exists")
         try:
             is_serial_device = "usb" in self.device.lower() or "com" in self.device.lower()
             if is_serial_device:
@@ -82,19 +84,19 @@ class UAV:
                 conn: mavutil.mavfile = mavutil.mavlink_connection(
                     self.device, source_system=255, source_component=1)
         except ConnectionRefusedError as err:
-            raise ConnectionError(f"Connection refused: {err}")
+            raise ConnectionError(f"UAV connection refused: {err}")
         except ConnectionResetError as err:
-            raise ConnectionError(f"Connection reset: {err}")
+            raise ConnectionError(f"UAV connection reset: {err}")
         except ConnectionAbortedError as err:
-            raise ConnectionError(f"Connection aborted: {err}")
+            raise ConnectionError(f"UAV connection aborted: {err}")
         except serial.SerialException as err:
-            raise ConnectionError(f"Connection failed: {err}")
+            raise ConnectionError(f"UAV connection failed: {err}")
         else:
             self.conn_lock = Lock()
             self.conn = conn
             self._connectionChanged()
 
-            print("connected")
+            print("UAV connected")
 
             self.thread = Thread(target=lambda: self._runEventLoop(), args=[])
             self.thread.start()
@@ -144,6 +146,13 @@ class UAV:
         Will be called with a dictionary of the fields and values.
         """
         self.status_cbs.append(cb)
+    
+    def addUAVImageRecvCb(self, cb):
+        """
+        add a function to be called when the UAV sends an image.
+        will be called with a string for the filepath
+        """
+        self.img_recv_cbs.append(cb)
 
     def addCommandAckedCb(self, cb):
         """
@@ -191,7 +200,7 @@ class UAV:
         Notify all listeners that a command was received.
         """
         for cb in self.last_message_received_cbs:
-            cb(True)
+            cb()
 
     def _recvStatus(self, status):
         """
@@ -201,6 +210,13 @@ class UAV:
         self.statustext_queue.put(status)
         for cb in self.status_cbs:
             cb(status)
+
+    def _imageReceived(self, filename):
+        """
+        notify all listeners that an image was received.
+        """
+        for cb in self.img_recv_cbs:
+            cb(filename)
 
     def _runEventLoop(self):
         assert self.conn is not None
@@ -215,7 +231,7 @@ class UAV:
 
         services = [
             HeartbeatService(self.commands, self.disconnect),
-            ImageService(self.commands, self.im_queue),
+            ImageService(self.commands, self.im_queue, self._imageReceived),
             StatusEchoService(self._recvStatus),
             MessageCollectorService(self.msg_queue),
             DebugService()
@@ -231,7 +247,7 @@ class UAV:
                 for service in services:
                     service.tick()
 
-                while msg := self.conn.recv_match(blocking=False):
+                while self.connected and (msg := self.conn.recv_match(blocking=False)):
                     for service in services:
                         service.recv_message(msg)
                     self._messageReceived()

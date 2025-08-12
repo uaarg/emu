@@ -128,7 +128,13 @@ class StatusEchoService(MavlinkService):
 
     def recv_message(self, message: mavlink2.MAVLink_message):
         if message.get_type() == "STATUSTEXT":
-            self.recv_status(message.text)
+            if message.severity >= 0 and message.severity <= 3:
+                severity = "error"
+            elif message.severity >= 4 and message.severity <= 5:
+                severity = "warning"
+            else:
+                severity = "normal"
+            self.recv_status({"severity": severity, "message": message.text})
 
 
 class DebugService(MavlinkService):
@@ -143,7 +149,7 @@ class DebugService(MavlinkService):
         self.do_testing = True
 
     def recv_message(self, message: mavlink2.MAVLink_message):
-        if message.get_type() == 'DEBUG_FLOAT_ARRAY':
+        if message.get_type() == "DEBUG_FLOAT_ARRAY":
             if message.name == "dbg_box":
                 self.get_bounding_box(message)
 
