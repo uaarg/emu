@@ -107,9 +107,6 @@ class HeartbeatService(MavlinkService):
 
         if self.timeout > 0:
             if now - self.last_recv_heartbeat > self.timeout * self.heartbeat_interval:
-                print(
-                    f"WARN: Lost connection to drone, last received a heartbeat {now - self.last_recv_heartbeat}s ago"
-                )
                 self.disconnect()
 
 

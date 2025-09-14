@@ -122,7 +122,7 @@ class DebugRandomStatusService(MavlinkService):
                 'How about this message',
                 'UAARG Rules!',
             ]
-            message = Command.statustext(random.choice(messages))
+            message = Command.statustext(random.choice(messages), 5)
             self.commands.put(message)
             self.last_send = time.time()
 
@@ -153,7 +153,7 @@ def main(device: str, timeout: int):
         DebugRandomStatusService(commands),
     ]
 
-    commands.put(Command.statustext("Started UAV Mocker (from %s)" % device))
+    commands.put(Command.statustext("Started UAV Mocker (from %s)" % device, 5))
 
     image_count = 0
     time_since_img = 0

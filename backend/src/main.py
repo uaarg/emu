@@ -102,7 +102,7 @@ uav.try_connect()
 
 # middle ground between drone and frontend
 # facilite communication between the two
-while uav.connected:
+while True:
     # get message from frontend
     # message = frontend.get_msg()
     # if (message != ""):
@@ -114,6 +114,4 @@ while uav.connected:
 
     # get messages from drone
     pass
-import time
-time.sleep(2)
 # uav.disconnect()
