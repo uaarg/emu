@@ -18,11 +18,10 @@ class GroundStation:
                  img_resolution: tuple[int, int] = (200, 200)) -> None:
         self.image_queue = queue.Queue()
         self.commands_queue = queue.Queue()
-        self.temp_filepath = "tmp/current.jpg"
         self.conn = mavutil.mavlink_connection(emu_device,
                                           source_system=1,
                                           source_component=2)
-        self.is_connected = False
+        self.is_connected = True 
         self.img_resolution = img_resolution
         self.comms_thread = None
 
@@ -43,13 +42,15 @@ class GroundStation:
         starts a concurrent messaging service connecting to emu ground station
         """
         self.comms_thread = threading.Thread(target=self._comms_loop)
+        self.comms_thread.start()
         
     def _comms_loop(self):
         services = [
             HeartbeatService(self.commands_queue, lambda a:None),
             CommandDispatcherService(self.conn, self.commands_queue, self.image_queue)
         ]
-        while True:
+
+        while self.is_connected:
             for service in services:
                 service.tick()
 
@@ -57,5 +58,6 @@ class GroundStation:
             if msg:
                 for service in services:
                     service.recv_message(msg)
-
-            time.sleep(0.0001)  # s = 100us
+            
+            time.sleep(0.01)
+            # time.sleep(0.0001)  # s = 100us

@@ -9,6 +9,7 @@ from math import ceil
 
 from backend.src.comms.services.command import Command
 from backend.src.comms.services.common import MavlinkService
+import os
 
 
 class StatusResonderService(MavlinkService):
@@ -23,31 +24,33 @@ class StatusResonderService(MavlinkService):
 
 class CommandDispatcherService(MavlinkService):
     def __init__(self, gcs_conn, commands: queue.Queue, images: queue.Queue):
-        self.gcs_conn = gcs_conn
+        self.conn = gcs_conn
         self.commands_queue = commands
         self.images_queue = images
-    
+        self.tmp_filepath = "tmp/testtest.jpg"
+        os.makedirs("tmp", exist_ok=True)
 
     def tick(self):
         if not self.commands_queue.empty():
-            command = self.commands_queue.get()
+            command = self.commands_queue.get(block=False)
             self.conn.write(command.encode(self.conn))
         elif not self.images_queue.empty():
             self._send_image()
+
 
     def _send_image(self) -> None:
             """
             sends the next iamge in queue to emu groundstation
             """
-            image_path = self.images_queue.get()
+            image_path = self.images_queue.get(block=False)
 
             # Compress image
             im = Image.open(image_path)
             im = im.resize((200, 150), Image.Resampling.LANCZOS)
-            im.save(self.temp_filepath, quality=75)
+            im.save(self.tmp_filepath, quality=75)
 
             # Open image as bytearray
-            with open(self.temp_filepath, "rb") as f:
+            with open(self.tmp_filepath, "rb") as f:
                 image_data = bytearray(f.read())
 
             message = mavlink2.MAVLink_camera_image_captured_message(
