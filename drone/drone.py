@@ -5,9 +5,9 @@ import threading
 
 from pymavlink import mavutil
 
-from drone.drone_services import *
-from backend.src.comms.services.common import HeartbeatService, Command
-
+from mavcomm.command import Command
+from mavcomm.services.common import HeartbeatService
+from mavcomm.services.imagesservice import UAVImageService
 
 class GroundStation:
     """
@@ -16,6 +16,9 @@ class GroundStation:
     def __init__(self,
                  emu_device,
                  img_resolution: tuple[int, int] = (200, 200)) -> None:
+        
+        # for testing emu_device = "udpin:localhost:14551"
+
         self.image_queue = queue.Queue()
         self.commands_queue = queue.Queue()
         self.conn = mavutil.mavlink_connection(emu_device,
@@ -46,8 +49,8 @@ class GroundStation:
         
     def _comms_loop(self):
         services = [
-            HeartbeatService(self.commands_queue, lambda a:None),
-            CommandDispatcherService(self.conn, self.commands_queue, self.image_queue)
+            HeartbeatService(self.commands_queue, lambda :None),
+            UAVImageService(self.commands_queue, self.image_queue)
         ]
 
         while self.is_connected:
@@ -58,6 +61,14 @@ class GroundStation:
             if msg:
                 for service in services:
                     service.recv_message(msg)
-            
-            time.sleep(0.01)
+                
+            # Empty the entire queue
+            while True:
+                try:
+                    command = self.commands_queue.get(block=False)
+                    self.conn.write(command.encode(self.conn))
+                except queue.Empty:
+                    break
+
+            time.sleep(0.01)  # s = 100us
             # time.sleep(0.0001)  # s = 100us

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from backend.src.comms.uav import UAV
-from backend.src.frontend_comms import FrontEnd
+from backend.src.comms.frontend import FrontEnd
 import queue
 import json
 

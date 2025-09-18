@@ -7,22 +7,12 @@ import queue
 from PIL import Image
 from math import ceil
 
-from backend.src.comms.services.command import Command
-from backend.src.comms.services.common import MavlinkService
+from mavcomm.command import Command
+from mavcomm.services.common import MavlinkService
 import os
 
 
-class StatusResonderService(MavlinkService):
-    def __init__(self):
-        pass
-
-    def recv_match(self):
-        pass
-
-    def tick(self):
-        pass
-
-class CommandDispatcherService(MavlinkService):
+class CommandDispatchService(MavlinkService):
     def __init__(self, gcs_conn, commands: queue.Queue, images: queue.Queue):
         self.conn = gcs_conn
         self.commands_queue = commands

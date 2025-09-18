@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import queue
 import datetime
 
-from backend.src.comms.services.common import MavlinkService
+from mavcomm.services.common import MavlinkService
 
 
 @dataclass
