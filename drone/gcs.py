@@ -12,6 +12,7 @@ from mavcomm.services.imagesservice import UAVImageService
 class GroundStation:
     """
     containerizes communication to the ground station
+    allows us to import this and simply call send_image or send_message
     """
     def __init__(self,
                  emu_device,
@@ -48,6 +49,9 @@ class GroundStation:
         self.comms_thread.start()
         
     def _comms_loop(self):
+        """
+        main loop where we receive and send messages
+        """
         services = [
             HeartbeatService(self.commands_queue, lambda :None),
             UAVImageService(self.commands_queue, self.image_queue)
@@ -70,5 +74,4 @@ class GroundStation:
                 except queue.Empty:
                     break
 
-            time.sleep(0.01)  # s = 100us
-            # time.sleep(0.0001)  # s = 100us
+            time.sleep(0.0001)  # s = 100us
