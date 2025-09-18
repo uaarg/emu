@@ -2,7 +2,8 @@ import queue
 import sys
 from pymavlink import mavutil
 
-from backend.src.comms.services.common import HeartbeatService
+from mavcomm.services.common import HeartbeatService
+from mavcomm.command import Command
 
 
 def disconnect():

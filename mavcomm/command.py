@@ -1,6 +1,8 @@
 from pymavlink import mavutil
 from pymavlink.dialects.v20 import all as mavlink2
 
+from math import ceil
+
 
 class Command:
     """
@@ -35,10 +37,11 @@ class Command:
     @staticmethod
     def ack(message: mavlink2.MAVLink_message,
             result=mavlink2.MAV_RESULT_ACCEPTED) -> 'Command':
-        msg = mavlink2.MAVLink_command_ack_message(command=message.get_msgId(),
-                                                   result=result,
-                                                   target_system=1,
-                                                   target_component=2)
+        msg = mavlink2.MAVLink_command_ack_message(
+            command=message.get_msgId(),
+            result=result,
+            target_system=1,
+            target_component=2)
         return Command(msg)
 
     @staticmethod
@@ -78,7 +81,8 @@ class Command:
             0,
             0)
         return Command(msg)
-
+    
+    @staticmethod
     def setMode(mode) -> 'Command':
         msg = mavlink2.MAVLink_command_long_message(
             1,  # Target System
@@ -94,6 +98,7 @@ class Command:
             0)
         return Command(msg)
 
+    @staticmethod
     def switchLights(is_on) -> 'Command':
         msg = mavlink2.MAVLink_command_long_message(
             1,  # Target System
@@ -123,6 +128,41 @@ class Command:
             0,
             0,
             0)
+        return Command(msg)
+    
+    @staticmethod
+    def ImageCapturedMessage(time) -> 'Command':
+        msg = mavlink2.MAVLink_camera_image_captured_message(
+            time_boot_ms=int(time),
+            time_utc=0,
+            camera_id=0,
+            lat=0,
+            lon=0,
+            alt=0,
+            relative_alt=0,
+            q=(1, 0, 0, 0),
+            image_index=-1,
+            capture_result=1,
+            file_url="".encode())
+        return Command(msg)
+
+    @staticmethod
+    def handshakeMessage(data_length: int, encapsulated_data_len: int) -> 'Command':
+        handshake_msg = mavlink2.MAVLink_data_transmission_handshake_message(
+                0,
+                data_length,
+                0,
+                0,
+                ceil(data_length / encapsulated_data_len),
+                encapsulated_data_len,
+                0,
+            )
+        return Command(handshake_msg)
+    
+    @staticmethod
+    def encapsulatedDataMessage(index: int, data_segment: bytearray):
+        msg = mavlink2.MAVLink_encapsulated_data_message(
+                index, data_segment)
         return Command(msg)
 
     def encode(self, conn: mavutil.mavfile) -> bytes:

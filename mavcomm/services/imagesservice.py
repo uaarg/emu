@@ -6,17 +6,18 @@ import queue
 from pymavlink import mavutil
 
 import os
+import time
+from PIL import Image
 
-from backend.src.comms.services.command import Command
+from mavcomm.command import Command
 from .common import MavlinkService
-from backend.src.image import Image
 
 
-class ImageService(MavlinkService):
+class GCSImageService(MavlinkService):
     """
     Image Transfer Protocol
     =======================
-
+    For use on the ground control station
     We are using a bare-bones variation of the Image
     Transmission Protocol [0].
 
@@ -77,6 +78,8 @@ class ImageService(MavlinkService):
         self.image_packets[message.seqnr] = message
 
     def done_recv_image(self, message):
+        print("received an image")
+
         self.commands.put(Command.ack(message))
 
         packet_nos = self.image_packets.keys()
@@ -139,7 +142,6 @@ class ImageService(MavlinkService):
         self.image_packets.clear()
 
     def recv_message(self, message):
-        # print(message.get_type())
         match message.get_type():
             case "CAMERA_IMAGE_CAPTURED":
                 self.image_packets.clear()
@@ -159,3 +161,60 @@ class ImageService(MavlinkService):
                     self.recv_image_packet(message)
                 else:
                     print("WARNING: Received unexpected ENCAPSULATED_DATA")
+
+
+
+class UAVImageService(MavlinkService):
+    commands: queue.Queue
+    images: queue.Queue
+    tmp_filepath: str
+    sending: bool
+    segmented_image_Data: bytearray | None
+    encapsulated_data_len: int
+    len_image_data: int
+
+    def __init__(self, commands: queue.Queue, images: queue.Queue):
+        self.commands = commands
+        self.images = images
+        os.makedirs("tmp", exist_ok=True)
+        self.tmp_filepath = "tmp/current.jpg"
+        self.sending = False
+        self.segmented_image_Data = None
+        self.encapsulated_data_len = 253
+        self.len_image_data = -1
+    
+    def recv_message(self, message):
+         pass
+
+    def tick(self):
+        if not (self.sending or self.images.empty()):
+            # self.sending = True
+            image_path = self.images.get(block=False)
+            self._initialize_data(image_path)
+            self._start_sending()
+        elif self.sending:
+            pass
+   
+    def _initialize_data(self, image_path: str):
+        # compress image
+        im = Image.open(image_path)
+        im = im.resize((200, 150), Image.Resampling.LANCZOS)
+        im.save(self.tmp_filepath, quality=75)
+        
+        # open image as bytearray
+        with open(self.tmp_filepath, "rb") as f:
+            image_data = bytearray(f.read())
+        self.len_image_data = len(image_data)
+        self.data = []
+        for start in range(0, len(image_data), self.encapsulated_data_len):
+            data_seg = image_data[start:start + self.encapsulated_data_len]
+            self.data.append(data_seg)
+        
+    def _start_sending(self):
+        self.commands.put(Command.ImageCapturedMessage(time.time()))
+        self.commands.put(Command.handshakeMessage(self.len_image_data, self.encapsulated_data_len))
+        for msg_index, data_seg in enumerate(self.data):
+            if len(data_seg) < self.encapsulated_data_len:
+                data_seg.extend(bytearray(self.encapsulated_data_len - len(data_seg)))
+            self.commands.put(Command.encapsulatedDataMessage(msg_index + 1, data_seg))
+        self.commands.put(Command.handshakeMessage(self.len_image_data, self.encapsulated_data_len))

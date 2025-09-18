@@ -60,6 +60,9 @@ pip install -r requirements.txt
 
 Running Emu
 --------------
+for testing you need 3 terminals, one for frontend, backend, test code
+
+### run the frontend
 From the base project directory run the gui using command
 ```
 npm run dev --prefix ./frontend/
@@ -67,6 +70,18 @@ npm run dev --prefix ./frontend/
 or inside of the frontend directory run:
 ```
 npm run dev
+```
+
+### run the backend
+from the base directory run
+```
+PYTHONPATH="." python backend/src/main.py
+```
+
+### run the mock uav
+from base directory run
+```
+python -m tools mock-uav
 ```
 
 ## Contribution Guidlines
