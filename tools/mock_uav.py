@@ -2,7 +2,7 @@ import sys
 import random
 import time
 
-from drone.drone import GroundStation
+from drone.gcs import GroundStation
 
 
 def disconnect():

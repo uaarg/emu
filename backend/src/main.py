@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from backend.src.comms.uav import UAV
 from backend.src.comms.frontend import FrontEnd
-import queue
 import json
+import time
 
 
 @dataclass
@@ -85,33 +85,23 @@ frontend.onConnect = onConnect
 frontend.start_comms()
 
 
-# connect the drone
 UAV_device = "udpout:localhost:14551"  # address for the UAV
-# im_queue = queue.Queue() # queue of image filenames to display
-# msg_queue = queue.Queue() # all messages recieved
-# statustext_queue = queue.Queue()
 
-# uav = UAV(UAV_device, im_queue=im_queue, msg_queue=msg_queue, statustext_queue=statustext_queue)
+# we use callbacks instead of actively monitering the queues.
 uav = UAV(UAV_device)
 uav.addUAVConnectedChangedCb(connectionChangedCb)
 uav.addUAVStatusCb(incomingLogCb)
 uav.addLastMessageReceivedCb(lastMsgRecvCb)
 uav.addUAVImageRecvCb(newImageCb)
 
-uav.try_connect()
 
-# middle ground between drone and frontend
-# facilite communication between the two
+# ensure we are always trying to connect.
+# we do not want to run into scenario where 
+# drone is able to connection but backend won't try
 while True:
-    # get message from frontend
-    # message = frontend.get_msg()
-    # if (message != ""):
-    #     pass
+    try:
+        uav.connect()
+    except ConnectionError:
+        print("error connecting, try again")
 
-    # if not im_queue.empty(): print("img queue: ", im_queue.get())
-    # if not msg_queue.empty(): print("msg queue: ", msg_queue.get())
-    # if not statustext_queue.empty(): print("statustext: ", statustext_queue.get())
-
-    # get messages from drone
-    pass
-# uav.disconnect()
+    time.sleep(1)
