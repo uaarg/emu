@@ -5,7 +5,7 @@ from pymavlink.dialects.v20 import all as mavlink2
 import time
 import queue
 
-from backend.src.comms.services.command import Command
+from mavcomm.command import Command
 
 
 class MavlinkService:
@@ -19,7 +19,7 @@ class MavlinkService:
 
     def tick(self):
         """
-        This item runs at least once every 10ms. This can be used by services
+        This item runs at least once every tick. This can be used by services
         which may want to implement timeouts or regular message sending.
         """
         pass

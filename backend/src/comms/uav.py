@@ -7,9 +7,9 @@ import serial
 import time
 import queue
 
-from backend.src.comms.services.imagesservice import ImageService
-from backend.src.comms.services.messageservice import MessageCollectorService
-from backend.src.comms.services.common import HeartbeatService, StatusEchoService, DebugService, ForwardingService
+from mavcomm.services.imagesservice import GCSImageService
+from mavcomm.services.messageservice import MessageCollectorService
+from mavcomm.services.common import HeartbeatService, StatusEchoService, DebugService, ForwardingService
 
 
 
@@ -231,7 +231,7 @@ class UAV:
 
         services = [
             HeartbeatService(self.commands, self.disconnect),
-            ImageService(self.commands, self.im_queue, self._imageReceived),
+            GCSImageService(self.commands, self.im_queue, self._imageReceived),
             StatusEchoService(self._recvStatus),
             MessageCollectorService(self.msg_queue),
             DebugService()
