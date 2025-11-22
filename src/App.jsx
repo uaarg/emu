@@ -4,7 +4,6 @@ import {
     Card,
     CardTitle,
     CardContent,
-    // CardDescription,
     CardFooter,
     CardHeader,
 } from './components/ui/card'
@@ -12,6 +11,9 @@ import {
 import { Switch } from "./components/ui/switch"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table.jsx';
 import { ScrollArea } from './components/ui/scroll-area';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
+import { Button } from './components/ui/button';
 
 
 
@@ -86,16 +88,30 @@ function App() {
     }, []);
 
     return (
-        <div className="flex w-screen h-screen">
-            <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
+        <div>
+            <ConnectComponent/>
+            <div className="flex w-screen h-screen">
+                <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
+                    <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
+                </div>
+                <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
+                    <ImageLayout filename={imageName}/>
+                </div>
+                <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
+                    <LogView logs={logs}/>
+                </div>
             </div>
-            <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                <ImageLayout filename={imageName}/>
-            </div>
-            <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
-                <LogView logs={logs}/>
-            </div>
+
+        </div>
+    );
+}
+
+function ConnectComponent() {
+    return (
+        <div className="flex items-center gap-2 m-2">
+            <label> Drone URL </label>
+            <Input  className="max-w-sm" type="text" placeholder="http://127.0.0.1:800" /> 
+            <Button type="submit" variant="outline"> Connect </Button>
         </div>
     );
 }
@@ -104,7 +120,7 @@ function App() {
 function UAVStatusComponent({label = "", value}) {
     return (
         <div className="flex justify-between items-center space-x-2">
-            <p className="basis-1/2">{label}</p>
+            <label className="basis-1/2">{label}</label>
             <div className="basis-1/2 rounded-md border px-2 py-2 font-mono text-sm">
                 {value}
             </div>
