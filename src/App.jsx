@@ -1,4 +1,4 @@
-import { useBackendConnection } from './comms.js';
+import { useUAVConnection } from './comms.js';
 import { useState, useCallback, useEffect } from 'react';
 import {
     Card,
