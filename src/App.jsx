@@ -70,7 +70,7 @@ function App() {
         };
     }, []);
 
-    const {sendMessage} = useBackendConnection({
+    const {sendMessage} = useUAVConnection({
         hostname: 'localhost',
         port: 14555,
         onMessage: messageHandler

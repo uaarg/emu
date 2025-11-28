@@ -8,7 +8,7 @@
 import {useEffect, useRef, useCallback} from 'react';
 
 
-export function useBackendConnection({hostname, port, onMessage}) {
+export function useUAVConnection({hostname, port, onMessage}) {
     // useRef allows us to remember information across renders without causing a re-render
     // we could use global variables.. i've heard that's good practice
     const socketRef = useRef(null);
