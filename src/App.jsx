@@ -130,7 +130,7 @@ function UAVStatusComponent({label = "", value}) {
 
 
 
-function UAVStatus({status, sendFunc}) {
+function UAVStatus({status}) {
     return (
         <>
             <Card className="w-full h-full shadow-2xl">
@@ -143,23 +143,6 @@ function UAVStatus({status, sendFunc}) {
                     <UAVStatusComponent label="Current mode" value={status.mode} />
                     <UAVStatusComponent label="Pictures received" value={status.imageCount} />
                 </CardContent>
-                <CardFooter className="flex justify-center space-x-4">
-                    <Switch
-                        checked={status.connection === "yes"}
-                        onCheckedChange={ (checked) => {
-                                console.log("tried to change connection");
-                                if (typeof sendFunc === "function") {
-                                    sendFunc(JSON.stringify({
-                                        "type": "command",
-                                        "command": checked ? "connect" : "disconnect"
-                                    }))
-                                }
-                            }
-                        }
-
-                    />
-                    <p> Connect </p>
-                </CardFooter>
             </Card>
         </>
     );
