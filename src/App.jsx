@@ -26,6 +26,7 @@ function App() {
     });
     const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
+    const [url, setUrl] = useState(null);
     
     const messageHandler = useCallback((json) => {
         switch (json.type) {
@@ -69,12 +70,11 @@ function App() {
                 break;
         };
     }, []);
-
-    const {sendMessage} = useUAVConnection({
-        hostname: 'localhost',
-        port: 14555,
-        onMessage: messageHandler
-    });
+    // const [sendMessage, setSendMessage] = useState(null);
+    const sendMessage = useUAVConnection({url: url, onMessage: messageHandler});
+    const handleConnect = (inputUrl) => {
+        setUrl(inputUrl);
+    }
     
     // make our time since last message actually go up
     useEffect(() => {
@@ -89,7 +89,7 @@ function App() {
 
     return (
         <div>
-            <ConnectComponent/>
+            <ConnectComponent onConnect={handleConnect}/>
             <div className="flex w-screen h-screen">
                 <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
                     <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
@@ -106,13 +106,19 @@ function App() {
     );
 }
 
-function ConnectComponent() {
+function ConnectComponent({ onConnect }) {
+    const [url, setUrl] = useState("");
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!url) return;
+        onConnect(url);
+    };
     return (
-        <div className="flex items-center gap-2 m-2">
+        <form className="flex items-center gap-2 m-2" onSubmit={handleSubmit}>
             <label> Drone URL </label>
-            <Input  className="max-w-sm" type="text" placeholder="http://127.0.0.1:800" /> 
+            <Input  className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" /> 
             <Button type="submit" variant="outline"> Connect </Button>
-        </div>
+        </form>
     );
 }
 
