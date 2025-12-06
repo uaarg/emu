@@ -16,7 +16,7 @@ export function useUAVConnection({url, onMessage}) {
 
     const connect = useCallback(() => {
         if (!url) return; // so we don't try to load right at startup
-        const socket = new WebSocket(url);
+        const socket = new WebSocket(url+'/ws');
         socketRef.current = socket;
         
         socket.onopen = () => {

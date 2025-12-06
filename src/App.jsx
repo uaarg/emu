@@ -4,15 +4,12 @@ import {
     Card,
     CardTitle,
     CardContent,
-    CardFooter,
     CardHeader,
 } from './components/ui/card'
 
-import { Switch } from "./components/ui/switch"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table.jsx';
 import { ScrollArea } from './components/ui/scroll-area';
 import { Input } from './components/ui/input';
-import { Label } from './components/ui/label';
 import { Button } from './components/ui/button';
 
 
@@ -32,30 +29,11 @@ function App() {
         switch (json.type) {
             case "status":
                 switch (json.status) {
-                    case "new_msg":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            timeSinceMessage: Number(0)
-                        }));
-                        break;
                    case "mode":
                         setUavStatus(prev => ({
                             ...prev,
                             mode: json.value
                         }));
-                        break;
-                    case "connection":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            connection: json.value
-                        }));
-                        break;
-                    case "new_img":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            imageCount: Number(prev.imageCount) + 1
-                        }));
-                        setImageName(json.value);
                         break;
                 };
                 break;
@@ -68,8 +46,15 @@ function App() {
                 console.log("log");
                 setLogs((prev) => [{message: json.message, severity: json.severity}, ...prev]);
                 break;
+            case "img":
+                setUavStatus(prev => ({
+                    ...prev,
+                    imageCount: Number(prev.imageCount) + 1
+                }));
+                setImageName(url + json.value);
+                break;
         };
-    }, []);
+    }, [url]);
     // const [sendMessage, setSendMessage] = useState(null);
     const sendMessage = useUAVConnection({url: url, onMessage: messageHandler});
     const handleConnect = (inputUrl) => {
@@ -165,7 +150,7 @@ function ImageLayout({filename}) {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center box-border">
-                    <img src={`${filename}?t=${Date.now()}`}
+                    <img src={`${filename}`}
                         alt="no image"
                         className="object-contain max-w-full max-h-full"
                     />
