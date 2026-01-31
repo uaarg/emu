@@ -64,3 +64,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+.connect label {
+    display: inline;
+}
+.connect input {
+    display: inline;
+
+}

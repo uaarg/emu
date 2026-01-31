@@ -28,7 +28,7 @@ do
 done
 
 # install dependancies
-npm install --prefix ./frontend/
-npm install -D tailwindcss postcss autoprefixer --prefix ./frontend/
+npm install
+npm install -D tailwindcss postcss autoprefixer
 
 echo "Install script ran successfully"

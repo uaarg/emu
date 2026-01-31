@@ -8,15 +8,15 @@
 import {useEffect, useRef, useCallback} from 'react';
 
 
-export function useBackendConnection({hostname, port, onMessage}) {
+export function useUAVConnection({url, onMessage}) {
     // useRef allows us to remember information across renders without causing a re-render
     // we could use global variables.. i've heard that's good practice
     const socketRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
 
     const connect = useCallback(() => {
-        
-        const socket = new WebSocket(`ws://${hostname}:${port}`);
+        if (!url) return; // so we don't try to load right at startup
+        const socket = new WebSocket(url+'/ws');
         socketRef.current = socket;
         
         socket.onopen = () => {
@@ -46,14 +46,8 @@ export function useBackendConnection({hostname, port, onMessage}) {
         socket.onclose = () => {
             console.log("websocket to backend closed");
             socketRef.current = null;
-            
-            // try to reconnect after 1 second
-            reconnectTimeoutRef.current = setTimeout(() => {
-                console.log("attempting to reconnect to backend");
-                connect();
-            }, 1000);
         };
-    }, [hostname, port, onMessage]);
+    }, [url, onMessage]);
 
     // need useRef because without it this will be run on every render
     useEffect(() => {
@@ -85,5 +79,4 @@ export function useBackendConnection({hostname, port, onMessage}) {
     }, []);
 
     return send;
-
 }

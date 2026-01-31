@@ -1,17 +1,16 @@
-import { useBackendConnection } from './comms.js';
+import { useUAVConnection } from './comms.js';
 import { useState, useCallback, useEffect } from 'react';
 import {
     Card,
     CardTitle,
     CardContent,
-    // CardDescription,
-    CardFooter,
     CardHeader,
 } from './components/ui/card'
 
-import { Switch } from "./components/ui/switch"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table.jsx';
 import { ScrollArea } from './components/ui/scroll-area';
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 
 
 
@@ -24,35 +23,17 @@ function App() {
     });
     const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
+    const [url, setUrl] = useState(null);
     
     const messageHandler = useCallback((json) => {
         switch (json.type) {
             case "status":
                 switch (json.status) {
-                    case "new_msg":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            timeSinceMessage: Number(0)
-                        }));
-                        break;
                    case "mode":
                         setUavStatus(prev => ({
                             ...prev,
                             mode: json.value
                         }));
-                        break;
-                    case "connection":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            connection: json.value
-                        }));
-                        break;
-                    case "new_img":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            imageCount: Number(prev.imageCount) + 1
-                        }));
-                        setImageName(json.value);
                         break;
                 };
                 break;
@@ -65,14 +46,20 @@ function App() {
                 console.log("log");
                 setLogs((prev) => [{message: json.message, severity: json.severity}, ...prev]);
                 break;
+            case "img":
+                setUavStatus(prev => ({
+                    ...prev,
+                    imageCount: Number(prev.imageCount) + 1
+                }));
+                setImageName(url + json.value);
+                break;
         };
-    }, []);
-
-    const {sendMessage} = useBackendConnection({
-        hostname: 'localhost',
-        port: 14555,
-        onMessage: messageHandler
-    });
+    }, [url]);
+    // const [sendMessage, setSendMessage] = useState(null);
+    const sendMessage = useUAVConnection({url: url, onMessage: messageHandler});
+    const handleConnect = (inputUrl) => {
+        setUrl(inputUrl);
+    }
     
     // make our time since last message actually go up
     useEffect(() => {
@@ -86,17 +73,37 @@ function App() {
     }, []);
 
     return (
-        <div className="flex w-screen h-screen">
-            <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
+        <div>
+            <ConnectComponent onConnect={handleConnect}/>
+            <div className="flex w-screen h-screen">
+                <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
+                    <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
+                </div>
+                <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
+                    <ImageLayout filename={imageName}/>
+                </div>
+                <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
+                    <LogView logs={logs}/>
+                </div>
             </div>
-            <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                <ImageLayout filename={imageName}/>
-            </div>
-            <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
-                <LogView logs={logs}/>
-            </div>
+
         </div>
+    );
+}
+
+function ConnectComponent({ onConnect }) {
+    const [url, setUrl] = useState("");
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!url) return;
+        onConnect(url);
+    };
+    return (
+        <form className="flex items-center gap-2 m-2" onSubmit={handleSubmit}>
+            <label> Drone URL </label>
+            <Input  className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" /> 
+            <Button type="submit" variant="outline"> Connect </Button>
+        </form>
     );
 }
 
@@ -104,7 +111,7 @@ function App() {
 function UAVStatusComponent({label = "", value}) {
     return (
         <div className="flex justify-between items-center space-x-2">
-            <p className="basis-1/2">{label}</p>
+            <label className="basis-1/2">{label}</label>
             <div className="basis-1/2 rounded-md border px-2 py-2 font-mono text-sm">
                 {value}
             </div>
@@ -114,7 +121,7 @@ function UAVStatusComponent({label = "", value}) {
 
 
 
-function UAVStatus({status, sendFunc}) {
+function UAVStatus({status}) {
     return (
         <>
             <Card className="w-full h-full shadow-2xl">
@@ -127,23 +134,6 @@ function UAVStatus({status, sendFunc}) {
                     <UAVStatusComponent label="Current mode" value={status.mode} />
                     <UAVStatusComponent label="Pictures received" value={status.imageCount} />
                 </CardContent>
-                <CardFooter className="flex justify-center space-x-4">
-                    <Switch
-                        checked={status.connection === "yes"}
-                        onCheckedChange={ (checked) => {
-                                console.log("tried to change connection");
-                                if (typeof sendFunc === "function") {
-                                    sendFunc(JSON.stringify({
-                                        "type": "command",
-                                        "command": checked ? "connect" : "disconnect"
-                                    }))
-                                }
-                            }
-                        }
-
-                    />
-                    <p> Connect </p>
-                </CardFooter>
             </Card>
         </>
     );
@@ -160,7 +150,7 @@ function ImageLayout({filename}) {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow flex items-center justify-center box-border">
-                    <img src={`${filename}?t=${Date.now()}`}
+                    <img src={`${filename}`}
                         alt="no image"
                         className="object-contain max-w-full max-h-full"
                     />

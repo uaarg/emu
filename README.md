@@ -18,11 +18,6 @@ the drone's operations.
 --------------
 **THIS REPOSITORY IS STILL UNDER DEVELOPMENT**
 
-Installation & Setup
---------------------
-
-Make sure you have python >=3.13 installed on your machine and that it is in
-your `PATH`.
 
 Install front end dependancies
 --------------------
@@ -34,54 +29,42 @@ Reload your shell after running the install script.
 
 For Windows (powershell) run the following commands from the base directory (emu).
 ```
-npm install --prefix ./frontend/
-npm install -D tailwindcss postcss autoprefixer --prefix ./frontend/
+npm install --prefix
+npm install -D tailwindcss postcss autoprefixer
 ```
 
-Setup the python virtual environment (do this once)
+Setup the python for testing
 --------------------
+Create venv
 ```
 python3 -m venv venv
 ```
-
-Activate the virtual environment (different for each OS)
---------------------
+Activate venv, different for each environment
 ```
 source ./venv/bin/activate  # (MacOS/Linux/...) unix shell
 venv\Scripts\activate.bat   # (Windows) cmd.exe
 venv\Scripts\Activate.ps1   # (Windoes) PowerShell
 ```
-
-Install dependencies (do this at setup and/or when requirements.txt changes)
---------------------
+Install dependencies
 ```
 pip install -r requirements.txt
 ```
 
 Running Emu
 --------------
-for testing you need 3 terminals, one for frontend, backend, test code
-
 ### run the frontend
 From the base project directory run the gui using command
-```
-npm run dev --prefix ./frontend/
-```
-or inside of the frontend directory run:
 ```
 npm run dev
 ```
 
-### run the backend
-from the base directory run
-```
-PYTHONPATH="." python backend/src/main.py
-```
-
 ### run the mock uav
-from base directory run
+For testing you need a second terminal, one for frontend and test code
+in the first terminal, run the above command.
+
+In the second terminal, from base directory run
 ```
-python -m tools mock-uav
+python tests/mock-uav.py
 ```
 
 ## Contribution Guidlines
