@@ -1,5 +1,5 @@
 import { useUAVConnection } from './comms.js';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Card,
     CardTitle,
@@ -24,12 +24,13 @@ function App() {
     const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
     const [url, setUrl] = useState(null);
-    
+    const [distance, setDistance] = useState(null);
+
     const messageHandler = useCallback((json) => {
         switch (json.type) {
             case "status":
                 switch (json.status) {
-                   case "mode":
+                    case "mode":
                         setUavStatus(prev => ({
                             ...prev,
                             mode: json.value
@@ -44,7 +45,7 @@ function App() {
                 break;
             case "log":
                 console.log("log");
-                setLogs((prev) => [{message: json.message, severity: json.severity}, ...prev]);
+                setLogs((prev) => [{ message: json.message, severity: json.severity }, ...prev]);
                 break;
             case "img":
                 setUavStatus(prev => ({
@@ -53,37 +54,49 @@ function App() {
                 }));
                 setImageName(url + json.value);
                 break;
+            case "distance":
+                setDistance(json.message);
+                break;
+
         };
     }, [url]);
     // const [sendMessage, setSendMessage] = useState(null);
-    const sendMessage = useUAVConnection({url: url, onMessage: messageHandler});
+
+    const sendMessage = useUAVConnection({ url: url, onMessage: messageHandler });
     const handleConnect = (inputUrl) => {
-        setUrl(inputUrl);
-    }
-    
-    // make our time since last message actually go up
-    useEffect(() => {
-    const interval = setInterval(() => {
+        // if url changes, reset connection status
         setUavStatus(prev => ({
             ...prev,
-            timeSinceMessage: Number(prev.timeSinceMessage) + 1
-        }));
-    }, 1000);
+            connection: "no",
+            mode: "null"
+        }))
+
+        setUrl(inputUrl);
+    }
+
+    // make our time since last message actually go up
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setUavStatus(prev => ({
+                ...prev,
+                timeSinceMessage: Number(prev.timeSinceMessage) + 1
+            }));
+        }, 1000);
         return () => clearInterval(interval);
     }, []);
 
     return (
         <div>
-            <ConnectComponent onConnect={handleConnect}/>
+            <ConnectComponent onConnect={handleConnect} />
             <div className="flex w-screen h-screen">
                 <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                    <UAVStatus  status={uavStatus} sendFunc={sendMessage}/>
+                    <UAVStatus status={uavStatus} sendFunc={sendMessage} />
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout filename={imageName}/>
+                    <ImageLayout status={uavStatus} filename={imageName} sendFunc={sendMessage} />
                 </div>
                 <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
-                    <LogView logs={logs}/>
+                    <LogView logs={logs} />
                 </div>
             </div>
 
@@ -101,14 +114,14 @@ function ConnectComponent({ onConnect }) {
     return (
         <form className="flex items-center gap-2 m-2" onSubmit={handleSubmit}>
             <label> Drone URL </label>
-            <Input  className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" /> 
+            <Input className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" />
             <Button type="submit" variant="outline"> Connect </Button>
         </form>
     );
 }
 
 
-function UAVStatusComponent({label = "", value}) {
+function UAVStatusComponent({ label = "", value }) {
     return (
         <div className="flex justify-between items-center space-x-2">
             <label className="basis-1/2">{label}</label>
@@ -121,7 +134,7 @@ function UAVStatusComponent({label = "", value}) {
 
 
 
-function UAVStatus({status}) {
+function UAVStatus({ status }) {
     return (
         <>
             <Card className="w-full h-full shadow-2xl">
@@ -140,31 +153,107 @@ function UAVStatus({status}) {
 }
 
 
-function ImageLayout({filename}) {
+function ImageLayout({ status, filename, sendFunc }) {
+    const [points, setPoints] = useState([])
+
+    const handleCaptureImage = () => {
+        // if no connection, just return
+        if (status.connection == "no") {
+            alert("No connection with the drone")
+            return;
+        }
+
+        //request image from UAV
+        sendFunc({
+            type: "image",
+            message: "capture"
+        })
+
+        setPoints([])
+    }
+
+    const handlePointsClicked = (point) => {
+        setPoints([...points, point])
+    }
+
+    const handleMeasure = () => {
+        if (status.imageCount == 0) {
+            alert("No image")
+            return
+        } else if (points.length !== 2) {
+            alert("Select exactly 2 points");
+            return;
+        }
+
+        sendFunc({
+            type: "getDistance",
+            message: JSON.stringify({
+                p1: points[0],
+                p2: points[1]
+            })
+        })
+    }
+
     return (
-        <div className="w-full h-full">
+        <div className="relative w-full h-full">
             <Card className="w-full h-full shadow-2xl flex flex-col">
                 <CardHeader>
                     <CardTitle className="text-center w-full">
                         Current Image
                     </CardTitle>
                 </CardHeader>
+                <Button className="absolute right-8 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline"> Capture Image </Button>
+                <Button className="absolute left-8 top-5 shadow-lg" onClick={handleMeasure} variant="outline"> Measure Distance </Button>
                 <CardContent className="flex-grow flex items-center justify-center box-border">
-                    <img src={`${filename}`}
-                        alt="no image"
-                        className="object-contain max-w-full max-h-full"
-                    />
+                    <Canvas imgSrc={`${filename}`} pointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
+                    </Canvas>
                 </CardContent>
             </Card>
         </div>
     );
 }
 
+function Canvas({ imgSrc, pointsClicked, className }) {
+    const canvasRef = useRef(null)
 
-function LogView({logs}) {
+    useEffect(() => {
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+
+        const image = new Image()
+        image.onload = () => {
+            canvas.width = image.width
+            canvas.height = image.height
+            ctx.drawImage(image, 0, 0)
+        }
+        image.src = imgSrc
+
+        canvas.addEventListener("click", (event) => {
+            const rect = canvas.getBoundingClientRect()
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
+
+            pointsClicked({ x, y });
+
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        })
+
+    }, [imgSrc])
+
+    return (
+        <canvas ref={canvasRef} className={className} />
+
+    )
+}
+
+
+function LogView({ logs }) {
     return (
         <>
-          <Card className="w-full h-full shadow-2xl flex flex-col">
+            <Card className="w-full h-full shadow-2xl flex flex-col">
                 <CardHeader>
                     <CardTitle className="text-center w-full">
                         Logs
@@ -172,32 +261,32 @@ function LogView({logs}) {
                 </CardHeader>
                 <CardContent className="flex flex-col flex-grow min-h-0">
                     <ScrollArea className="flex-grow min-h-0">
-                    <table className="w-full table-auto">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[80px]"> Severity </TableHead>
-                            <TableHead> Message </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {logs.map((log, index) => {
-                            let rowClass = "";
-                            if (log.severity == "warning") {
-                                rowClass = "bg-red-100";
-                            } else if (log.severity == "error") {
-                                rowClass = "bg-orange-100";
-                            }
+                        <table className="w-full table-auto">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[80px]"> Severity </TableHead>
+                                    <TableHead> Message </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {logs.map((log, index) => {
+                                    let rowClass = "";
+                                    if (log.severity == "warning") {
+                                        rowClass = "bg-red-100";
+                                    } else if (log.severity == "error") {
+                                        rowClass = "bg-orange-100";
+                                    }
 
-                            return (
-                            <TableRow key={index} className={rowClass}>
-                                <TableCell className="w-[80px]"> {log.severity} </TableCell>
-                                <TableCell> {log.message} </TableCell>
-                            </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </table>
-                </ScrollArea>
+                                    return (
+                                        <TableRow key={index} className={rowClass}>
+                                            <TableCell className="w-[80px]"> {log.severity} </TableCell>
+                                            <TableCell> {log.message} </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </table>
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </>
