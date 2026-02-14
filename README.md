@@ -35,20 +35,7 @@ npm install -D tailwindcss postcss autoprefixer
 
 Setup the python for testing
 --------------------
-Create venv
-```
-python3 -m venv venv
-```
-Activate venv, different for each environment
-```
-source ./venv/bin/activate  # (MacOS/Linux/...) unix shell
-venv\Scripts\activate.bat   # (Windows) cmd.exe
-venv\Scripts\Activate.ps1   # (Windoes) PowerShell
-```
-Install dependencies
-```
-pip install -r requirements.txt
-```
+To test Emu install and setup Shephard.
 
 Running Emu
 --------------
@@ -56,15 +43,6 @@ Running Emu
 From the base project directory run the gui using command
 ```
 npm run dev
-```
-
-### run the mock uav
-For testing you need a second terminal, one for frontend and test code
-in the first terminal, run the above command.
-
-In the second terminal, from base directory run
-```
-python tests/mock-uav.py
 ```
 
 ## Contribution Guidlines
@@ -79,9 +57,3 @@ python tests/mock-uav.py
 * Make your changes then open a Pull Request to the main branch of this repository. Be sure to link the issue it resolves. 
 * Please feel free to ask any question at any time.
 * Please feel free to ask for help.
-* Please follow pep8 for style: https://www.python.org/dev/peps/pep-0008/
-* Please run the tests and make sure they pass before commiting
-  anything: if the tests don't pass, it means you broke something
-  somehow (or, someone else commited a break, in which case find who
-  and get them to fix it).
-
