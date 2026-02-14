@@ -5,10 +5,10 @@
  */
 
 
-import {useEffect, useRef, useCallback} from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 
-export function useUAVConnection({url, onMessage}) {
+export function useUAVConnection({ url, onMessage, onConnect }) {
     // useRef allows us to remember information across renders without causing a re-render
     // we could use global variables.. i've heard that's good practice
     const socketRef = useRef(null);
@@ -16,13 +16,14 @@ export function useUAVConnection({url, onMessage}) {
 
     const connect = useCallback(() => {
         if (!url) return; // so we don't try to load right at startup
-        const socket = new WebSocket(url+'/ws');
+        const socket = new WebSocket(url + '/ws');
         socketRef.current = socket;
-        
+
         socket.onopen = () => {
             if (reconnectTimeoutRef.current !== null) {
                 clearTimeout(reconnectTimeoutRef.current);
             }
+            onConnect();
             console.log("websocket to backend opened");
         };
 
@@ -64,7 +65,7 @@ export function useUAVConnection({url, onMessage}) {
             }
         };
     }, [connect]); // dependencies; if these change re-render
-    
+
     // takes JSON and turns it into a string and sends to socket
     const send = useCallback((message) => {
         if (socketRef.current !== null) {
