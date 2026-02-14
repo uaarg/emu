@@ -26,6 +26,23 @@ function App() {
     const [url, setUrl] = useState(null);
     const [distance, setDistance] = useState(null);
 
+    const onConnect = () => {
+        setUavStatus(prev => ({
+            ...prev,
+            connection: "yes",
+            mode: "null"
+        }))
+    }
+
+
+    const onDisconnect = () => {
+        setUavStatus(prev => ({
+            ...prev,
+            connection: "no",
+            mode: "null"
+        }))
+    }
+
     const messageHandler = useCallback((json) => {
         switch (json.type) {
             case "status":
@@ -56,20 +73,17 @@ function App() {
                 break;
             case "distance":
                 setDistance(json.message);
+                console.log(distance);
                 break;
 
         };
     }, [url]);
     // const [sendMessage, setSendMessage] = useState(null);
 
-    const sendMessage = useUAVConnection({ url: url, onMessage: messageHandler });
+    const sendMessage = useUAVConnection({ url: url, onMessage: messageHandler, onConnect: onConnect });
     const handleConnect = (inputUrl) => {
         // if url changes, reset connection status
-        setUavStatus(prev => ({
-            ...prev,
-            connection: "no",
-            mode: "null"
-        }))
+        onDisconnect()
 
         setUrl(inputUrl);
     }
@@ -177,6 +191,7 @@ function ImageLayout({ status, filename, sendFunc }) {
     }
 
     const handleMeasure = () => {
+        console.log(points)
         if (status.imageCount == 0) {
             alert("No image")
             return
@@ -185,12 +200,13 @@ function ImageLayout({ status, filename, sendFunc }) {
             return;
         }
 
+
         sendFunc({
             type: "getDistance",
-            message: JSON.stringify({
+            message: {
                 p1: points[0],
                 p2: points[1]
-            })
+            }
         })
     }
 
@@ -233,6 +249,7 @@ function Canvas({ imgSrc, pointsClicked, className }) {
             const x = Math.round(event.clientX - rect.left);
             const y = Math.round(event.clientY - rect.top);
 
+            console.log("point clicked")
             pointsClicked({ x, y });
 
             ctx.fillStyle = "red";
