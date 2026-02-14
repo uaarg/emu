@@ -73,7 +73,7 @@ function App() {
                 break;
             case "distance":
                 setDistance(json.message);
-                console.log(distance);
+                console.log(json);
                 break;
 
         };
@@ -168,7 +168,10 @@ function UAVStatus({ status }) {
 
 
 function ImageLayout({ status, filename, sendFunc }) {
-    const [points, setPoints] = useState([])
+    const pointsRef = useRef({
+        p1: null,
+        p2: null
+    })
 
     const handleCaptureImage = () => {
         // if no connection, just return
@@ -183,29 +186,40 @@ function ImageLayout({ status, filename, sendFunc }) {
             message: "capture"
         })
 
-        setPoints([])
+        pointsRef.current = {
+            p1: null,
+            p2: null
+        }
     }
 
     const handlePointsClicked = (point) => {
-        setPoints([...points, point])
+
+        if (!pointsRef.current.p1) {
+            pointsRef.current.p1 = point
+        }
+        else if (!pointsRef.current.p2) {
+            pointsRef.current.p2 = point
+        } else {
+            alert("ONLY 2 POINTS")
+        }
+
+        console.log(pointsRef.current)
     }
 
     const handleMeasure = () => {
-        console.log(points)
         if (status.imageCount == 0) {
             alert("No image")
             return
-        } else if (points.length !== 2) {
+        } else if (!pointsRef.current.p1 || !pointsRef.current.p2) {
             alert("Select exactly 2 points");
             return;
         }
 
-
         sendFunc({
             type: "getDistance",
             message: {
-                p1: points[0],
-                p2: points[1]
+                p1: pointsRef.current.p1,
+                p2: pointsRef.current.p2
             }
         })
     }
@@ -244,18 +258,24 @@ function Canvas({ imgSrc, pointsClicked, className }) {
         }
         image.src = imgSrc
 
-        canvas.addEventListener("click", (event) => {
+
+        const construct_canvas = (event) => {
             const rect = canvas.getBoundingClientRect()
             const x = Math.round(event.clientX - rect.left);
             const y = Math.round(event.clientY - rect.top);
 
-            console.log("point clicked")
             pointsClicked({ x, y });
 
             ctx.fillStyle = "red";
             ctx.beginPath();
             ctx.arc(x, y, 5, 0, Math.PI * 2);
             ctx.fill();
+        }
+
+        canvas.addEventListener("click", construct_canvas)
+
+        return (() => {
+            canvas.removeEventListener("click", construct_canvas);
         })
 
     }, [imgSrc])
