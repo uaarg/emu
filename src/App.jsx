@@ -222,6 +222,11 @@ function ImageLayout({ status, filename, sendFunc }) {
                 p2: pointsRef.current.p2
             }
         })
+
+        pointsRef.current = {
+            p1: null,
+            p2: null
+        }
     }
 
     return (
