@@ -44,6 +44,10 @@ function App() {
     }
 
     const messageHandler = useCallback((json) => {
+        setUavStatus(prev => ({
+            ...prev,
+            timeSinceMessage: Number(0)
+        }));
         switch (json.type) {
             case "status":
                 switch (json.status) {
