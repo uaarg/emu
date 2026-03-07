@@ -11,6 +11,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './compon
 import { ScrollArea } from './components/ui/scroll-area';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
+import Sliders from './Sliders.jsx';
 
 
 
@@ -247,6 +248,7 @@ function ImageLayout({ status, filename, sendFunc }) {
                     <Canvas imgSrc={`${filename}`} pointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
                     </Canvas>
                 </CardContent>
+                <Sliders sendFunc={sendFunc} />
             </Card>
         </div>
     );
