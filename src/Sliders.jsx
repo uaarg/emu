@@ -5,11 +5,31 @@ function Sliders({ sendFunc }) {
     const [vertical, setVertical] = useState(90);
     const [horizontal, setHorizontal] = useState(0);
 
-    const handleSendAiming = () => {
+    const handleVerticalChange = (value) => {
+        setVertical(value);
+        sendFunc({
+            type: "aim",
+            vertical: value,
+            horizontal: horizontal
+        });
+    };
+
+    const handleHorizontalChange = (value) => {
+        setHorizontal(value);
         sendFunc({
             type: "aim",
             vertical: vertical,
-            horizontal: horizontal
+            horizontal: value
+        });
+    };
+
+    const handleReset = () => {
+        setVertical(90);
+        setHorizontal(0);
+        sendFunc({
+            type: "aim",
+            vertical: 90,
+            horizontal: 0
         });
     };
 
@@ -23,7 +43,7 @@ function Sliders({ sendFunc }) {
                         min="0"
                         max="180"
                         value={vertical}
-                        onChange={(e) => setVertical(Number(e.target.value))}
+                        onChange={(e) => handleVerticalChange(Number(e.target.value))}
                         className="w-full"
                     />
                     <span className="text-sm">{vertical}°</span>
@@ -35,12 +55,12 @@ function Sliders({ sendFunc }) {
                         min="-180"
                         max="180"
                         value={horizontal}
-                        onChange={(e) => setHorizontal(Number(e.target.value))}
+                        onChange={(e) => handleHorizontalChange(Number(e.target.value))}
                         className="w-full"
                     />
                     <span className="text-sm">{horizontal}°</span>
                 </div>
-                <Button onClick={handleSendAiming} variant="outline">Send Aiming Values</Button>
+                <Button onClick={handleReset} variant="outline">Reset Sliders</Button>
             </div>
         </div>
     );
