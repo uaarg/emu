@@ -67,7 +67,7 @@ function App() {
                 break;
             case "log":
                 console.log("log");
-                setLogs((prev) => [{ message: json.message, severity: json.severity }, ...prev]);
+                setLogs((prev) => [...prev, { message: json.message, severity: json.severity }]);
                 break;
             case "img":
                 setUavStatus(prev => ({
@@ -79,6 +79,7 @@ function App() {
             case "distance":
                 setDistance(json.message);
                 console.log(json);
+                setLogs((prev) => [...prev, { message: `distance: ${json.message}`, severity: "normal"}]);
                 break;
 
         };
