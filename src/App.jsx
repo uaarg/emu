@@ -25,7 +25,6 @@ function App() {
     const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
     const [url, setUrl] = useState(null);
-    const [distance, setDistance] = useState(null);
 
     const onConnect = () => {
         setUavStatus(prev => ({
@@ -77,14 +76,12 @@ function App() {
                 setImageName(url + json.value);
                 break;
             case "distance":
-                setDistance(json.message);
                 console.log(json);
                 setLogs((prev) => [...prev, { message: `distance: ${json.message}`, severity: "normal"}]);
                 break;
 
         };
     }, [url]);
-    // const [sendMessage, setSendMessage] = useState(null);
 
     const sendMessage = useUAVConnection({ url: url, onMessage: messageHandler, onConnect: onConnect });
     const handleConnect = (inputUrl) => {
