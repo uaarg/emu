@@ -1,36 +1,53 @@
-/*
- * react hook to handle the websocket connection
- * handles incoming and receiving json pertaining
- * to user's actions and uav updates
- */
+export class UAVConnection {
+    constructor() {
+        this.isConnected = false;
+        this.socket = null;
+        this.url = null;
+        this.recvMessageCB = () => {}; // default callback to empty function
+    }
 
+    connect() {
+        if (this.socket !== null) {
+            console.warn("Connection attempt with already existing websocket. Aborting.");
+            return;
+        }
+        if (this.url === null) {
+            console.warn("Cannot create connection: no URL specified. Ensure UAVConnection.url is set.")
+            return;
+        }
+        if (!this.url.ends.endsWith("/ws")) {
+            this.url = this.url + "/ws";
+        }
+        this.socket = new WebSocket(this.url);
+        this.socket.onopen = this.onOpen.bind(this);
+        this.socket.onclose = this.onClose.bind(this);
+        this.socket.onmessage = this.onMessage.bind(this);
+        this.socket.onerror = this.onError.bind(this);
+    }
 
-import { useEffect, useRef, useCallback } from 'react';
+    disconnect() {
+        if (this.socket !== null) {
+            this.socket.close();
+        }
+        console.warn("Disconnection attempt while socket is null.");
+    }    
 
+    onOpen() {
+        this.isConnected = true;
+        console.log("websocket to backend opened");
+    }
 
-export function useUAVConnection({ url, onMessage, onConnect }) {
-    // useRef allows us to remember information across renders without causing a re-render
-    // we could use global variables.. i've heard that's good practice
-    const socketRef = useRef(null);
-    const reconnectTimeoutRef = useRef(null);
+    onClose() {
+        this.isConnected = false;
+        this.socket = null;
+        console.log("websocket to backend closed");
+    }
 
-    const connect = useCallback(() => {
-        if (!url) return; // so we don't try to load right at startup
-        const socket = new WebSocket(url + '/ws');
-        socketRef.current = socket;
-
-        socket.onopen = () => {
-            if (reconnectTimeoutRef.current !== null) {
-                clearTimeout(reconnectTimeoutRef.current);
-            }
-            onConnect();
-            console.log("websocket to backend opened");
-        };
-
-        socket.onmessage = (event) => {
+    onMessage(event) {
+        if (this.socket !== null) {
             try {
                 const message = JSON.parse(event.data);
-                onMessage?.(message);
+                this.recvMessageCB(message);
             } catch (error) {
                 if (error instanceof SyntaxError) {
                     console.error("invalid json:", event.data);
@@ -38,46 +55,23 @@ export function useUAVConnection({ url, onMessage, onConnect }) {
                     console.error("incoming message error:", error.message);
                 }
             }
-        };
 
-        socket.onerror = (event) => {
-            console.warn("websocket error", event);
         }
+    }
 
-        socket.onclose = () => {
-            console.log("websocket to backend closed");
-            socketRef.current = null;
-        };
-    }, [url, onMessage]);
+    onError(event) {
+            console.warn("websocket error", event);
+    }
 
-    // need useRef because without it this will be run on every render
-    useEffect(() => {
-        connect()
-
-        return () => {
-            if (socketRef.current !== null) {
-                socketRef.current.close();
-                socketRef.current = null;
-            }
-            if (reconnectTimeoutRef.current !== null) {
-                clearTimeout(reconnectTimeoutRef.current);
-                reconnectTimeoutRef.current = null;
-            }
-        };
-    }, [connect]); // dependencies; if these change re-render
-
-    // takes JSON and turns it into a string and sends to socket
-    const send = useCallback((message) => {
-        if (socketRef.current !== null) {
-            if (socketRef.current.readyState == WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify(message));
+    sendMessage(message) {
+        if (this.socket !== null) {
+            if (this.socket.readyState == WebSocket.OPEN) {
+                this.socket.send(JSON.stringify(message));
             } else {
                 console.warn("connection not open");
             }
         } else {
-            console.warn("socketRef is null");
+            console.warn("UAVConnection.connect() has not been called");
         }
-    }, []);
-
-    return send;
+    }
 }
