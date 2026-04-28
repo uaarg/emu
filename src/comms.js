@@ -3,10 +3,16 @@
  * handles incoming and receiving json pertaining
  * to user's actions and uav updates
  */
-
-
 import { useEffect, useRef, useCallback } from 'react';
 
+export const pendingByRequestId = new Map();
+
+function generateRequestId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
 
 export function useUAVConnection({ url, onMessage, onConnect }) {
     // useRef allows us to remember information across renders without causing a re-render
@@ -70,7 +76,12 @@ export function useUAVConnection({ url, onMessage, onConnect }) {
     const send = useCallback((message) => {
         if (socketRef.current !== null) {
             if (socketRef.current.readyState == WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify(message));
+                return new Promise((resolve, reject) => {
+                    const requestId = generateRequestId();
+                    message.requestId = requestId;
+                    pendingByRequestId.set(requestId, { resolve, reject });
+                    socketRef.current.send(JSON.stringify(message));
+                });
             } else {
                 console.warn("connection not open");
             }
