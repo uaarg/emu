@@ -1,4 +1,4 @@
-import { UAVConnection } from './comms.js';
+import { UAVConnection, pendingByRequestId } from './comms.js';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Card,
@@ -6,14 +6,17 @@ import {
     CardContent,
     CardHeader,
 } from './components/ui/card'
-
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table.jsx';
 import { ScrollArea } from './components/ui/scroll-area';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import Sliders from './Sliders.jsx';
-
-
+import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
+import Canvas from './components/Canvas.jsx';
+import { AddTargetDialog } from './components/Dialog.jsx';
+import { saveTarget } from './targets.js';
+import { DistanceTable } from './components/DistancesTable.jsx';
+import TargetViewer from './components/TargetViewer.jsx';
 
 function App() {
     const [uavStatus, setUavStatus] = useState({
@@ -27,6 +30,7 @@ function App() {
     const wsConnRef = useRef(new UAVConnection());
     const [isConnected, setIsConnected] = useState(false);
     wsConnRef.current.onWSOpen = () => {
+
         setUavStatus(prev => ({
             ...prev,
             connection: "yes",
@@ -35,6 +39,7 @@ function App() {
         setIsConnected(true);
     };
     wsConnRef.current.onWSClose = () => {
+
         setUavStatus(prev => ({
             ...prev,
             connection: "no",
@@ -48,6 +53,29 @@ function App() {
             ...prev,
             timeSinceMessage: Number(0)
         }));
+
+        if ("requestId" in json) {
+            const pending = pendingByRequestId.get(json.requestId);
+            if (!pending) return;
+            pendingByRequestId.delete(json.requestId);
+
+            switch (json.type) {
+                case "point":
+                    if (json.message === "invalid") {
+                        const msg = "invalid depth point";
+                        pending.reject(msg);
+                        setLogs((prev) => [...prev, { message: `point: ${msg}`, severity: "normal" }]);
+                        break;
+                    } else {
+                        const point = json.message;
+                        pending.resolve(json.message);
+                        setLogs((prev) => [...prev, { message: `point: (${point.x}, ${point.y}, ${point.z})`, severity: "normal" }]);
+                        break;
+                    }
+            };
+            return;
+        }
+
         switch (json.type) {
             case "status":
                 switch (json.status) {
@@ -84,6 +112,7 @@ function App() {
     }, []);
     
     wsConnRef.current.setRecvMessageCB(messageHandler);
+
 
     // make our time since last message actually go up
     useEffect(() => {
@@ -142,7 +171,6 @@ function ConnectComponent({ isConnected, connect, disconnect }) {
     );
 }
 
-
 function UAVStatusComponent({ label = "", value }) {
     return (
         <div className="flex justify-between items-center space-x-2">
@@ -153,8 +181,6 @@ function UAVStatusComponent({ label = "", value }) {
         </div>
     );
 }
-
-
 
 function UAVStatus({ status }) {
     return (
@@ -174,17 +200,19 @@ function UAVStatus({ status }) {
     );
 }
 
-
 function ImageLayout({ status, filename, sendFunc }) {
-    const pointsRef = useRef({
-        p1: null,
-        p2: null
-    })
+    const dialogPendingRef = useRef(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
+
+    const imageUriToId = (uri) => {
+        const filename = uri.split("/").pop();
+        return filename.replace(/\.[^/.]+$/, "");
+    }
 
     const handleCaptureImage = () => {
         // if no connection, just return
         if (status.connection == "no") {
-            alert("No connection with the drone")
+            alert("No connection with the drone");
             return;
         }
 
@@ -192,50 +220,33 @@ function ImageLayout({ status, filename, sendFunc }) {
         sendFunc({
             type: "image",
             message: "capture"
-        })
-
-        pointsRef.current = {
-            p1: null,
-            p2: null
-        }
+        });
     }
 
-    const handlePointsClicked = (point) => {
+    const handlePointsClicked = async (point) => {
+        const targetInfoPromise = new Promise((resolve, reject) => {
+            dialogPendingRef.current = { resolve, reject };
+        });
 
-        if (!pointsRef.current.p1) {
-            pointsRef.current.p1 = point
-        }
-        else if (!pointsRef.current.p2) {
-            pointsRef.current.p2 = point
-        } else {
-            alert("ONLY 2 POINTS")
-        }
-
-        console.log(pointsRef.current)
-    }
-
-    const handleMeasure = () => {
-        if (status.imageCount == 0) {
-            alert("No image")
-            return
-        } else if (!pointsRef.current.p1 || !pointsRef.current.p2) {
-            alert("Select exactly 2 points");
-            return;
-        }
+        setDialogOpen(true);
+        const targetInfo = await targetInfoPromise;
+        setDialogOpen(false);
 
         sendFunc({
-            type: "getDistance",
+            type: "getPoint",
             message: {
-                p1: pointsRef.current.p1,
-                p2: pointsRef.current.p2
+                pixel: point
             }
         })
+            .then(distPoint => {
+                saveTarget(targetInfo.name, imageUriToId(filename), distPoint);
+            })
+            .catch((error) => {
 
-        pointsRef.current = {
-            p1: null,
-            p2: null
-        }
+            });
     }
+
+    const [tabPick, setTabPick] = useState("image");
 
     return (
         <div className="relative w-full h-full">
@@ -245,158 +256,45 @@ function ImageLayout({ status, filename, sendFunc }) {
                         Current Image
                     </CardTitle>
                 </CardHeader>
-                <Button className="absolute right-8 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline"> Capture Image </Button>
-                <Button className="absolute left-8 top-5 shadow-lg" onClick={handleMeasure} variant="outline"> Measure Distance </Button>
-                <CardContent className="flex-grow flex items-center justify-center box-border">
-                    <Canvas imgSrc={`${filename}`} pointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
-                    </Canvas>
-                </CardContent>
+                <Button className="absolute right-7 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
+                <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
+                    <TabsList>
+                        <TabsTrigger value="image">Image</TabsTrigger>
+                        <TabsTrigger value="targetMgmt">Target Management</TabsTrigger>
+                        <TabsTrigger value="viewer">3D Viewer</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+                {tabPick === "image" && (
+                    <CardContent className="flex-grow flex items-center justify-center box-border">
+                        {dialogOpen && <AddTargetDialog dialogClose={() => setDialogOpen(false)} setFormData={data => {
+                            dialogPendingRef.current?.resolve(data)
+                            dialogPendingRef.current = null;
+                        }}></AddTargetDialog>}
+                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
+                        </Canvas>
+                    </CardContent>
+                )}
+                {tabPick === "targetMgmt" && (
+                    <CardContent>
+                        <TargetManager></TargetManager>
+                    </CardContent>
+                )}
+                {tabPick === "viewer" && (
+                    <CardContent className="h-full w-full">
+                        <TargetViewer />
+                    </CardContent>
+                )}
                 <Sliders sendFunc={sendFunc} />
             </Card>
-        </div>
+        </div >
     );
 }
 
-const MAG_LENS_CSS = 140;
-const MAG_ZOOM = 2.5;
-
-function Canvas({ imgSrc, pointsClicked, className }) {
-    const canvasRef = useRef(null);
-    const magnifierRef = useRef(null);
-    const containerRef = useRef(null);
-    const pointsClickedRef = useRef(pointsClicked);
-    pointsClickedRef.current = pointsClicked;
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const magCanvas = magnifierRef.current;
-        const container = containerRef.current;
-        if (!canvas || !magCanvas || !container) return;
-
-        const ctx = canvas.getContext("2d");
-        const magCtx = magCanvas.getContext("2d");
-        magCanvas.width = MAG_LENS_CSS;
-        magCanvas.height = MAG_LENS_CSS;
-
-        const image = new Image();
-        let bitmapReady = false;
-
-        const clientToBitmap = (clientX, clientY) => {
-            const rect = canvas.getBoundingClientRect();
-            if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY,
-            };
-        };
-
-        const positionLens = (clientX, clientY) => {
-            const wrap = container.getBoundingClientRect();
-            const pad = 12;
-            let left = clientX - wrap.left + pad;
-            let top = clientY - wrap.top - MAG_LENS_CSS - pad;
-            left = Math.min(Math.max(0, left), Math.max(0, wrap.width - MAG_LENS_CSS));
-            top = Math.min(Math.max(0, top), Math.max(0, wrap.height - MAG_LENS_CSS));
-            magCanvas.style.left = `${left}px`;
-            magCanvas.style.top = `${top}px`;
-        };
-
-        const drawMagnifier = (clientX, clientY) => {
-            if (!bitmapReady || canvas.width <= 0 || canvas.height <= 0) return;
-            const rect = canvas.getBoundingClientRect();
-            if (rect.width <= 0 || rect.height <= 0) return;
-            const { x: bx, y: by } = clientToBitmap(clientX, clientY);
-            let srcW = (MAG_LENS_CSS / MAG_ZOOM) * (canvas.width / rect.width);
-            let srcH = (MAG_LENS_CSS / MAG_ZOOM) * (canvas.height / rect.height);
-            srcW = Math.min(srcW, canvas.width);
-            srcH = Math.min(srcH, canvas.height);
-            let sx = bx - srcW / 2;
-            let sy = by - srcH / 2;
-            sx = Math.max(0, Math.min(sx, canvas.width - srcW));
-            sy = Math.max(0, Math.min(sy, canvas.height - srcH));
-            magCtx.clearRect(0, 0, MAG_LENS_CSS, MAG_LENS_CSS);
-            magCtx.drawImage(canvas, sx, sy, srcW, srcH, 0, 0, MAG_LENS_CSS, MAG_LENS_CSS);
-            const cx = MAG_LENS_CSS / 2;
-            const cy = MAG_LENS_CSS / 2;
-            const arm = (MAG_LENS_CSS / 2) / 10;
-            magCtx.save();
-            magCtx.strokeStyle = "red";
-            magCtx.lineWidth = 1.5;
-            magCtx.lineCap = "square";
-            magCtx.beginPath();
-            magCtx.moveTo(cx - arm, cy);
-            magCtx.lineTo(cx + arm, cy);
-            magCtx.moveTo(cx, cy - arm);
-            magCtx.lineTo(cx, cy + arm);
-            magCtx.stroke();
-            magCtx.restore();
-        };
-
-        image.onload = () => {
-            canvas.width = image.width;
-            canvas.height = image.height;
-            ctx.drawImage(image, 0, 0);
-            bitmapReady = true;
-        };
-        image.src = imgSrc;
-
-        const construct_canvas = (event) => {
-            if (!bitmapReady) return;
-            const { x, y } = clientToBitmap(event.clientX, event.clientY);
-            const rx = Math.round(x);
-            const ry = Math.round(y);
-            pointsClickedRef.current({ x: rx, y: ry });
-            ctx.fillStyle = "red";
-            ctx.beginPath();
-            ctx.arc(rx, ry, 5, 0, Math.PI * 2);
-            ctx.fill();
-        };
-
-        const onMove = (event) => {
-            if (!bitmapReady) return;
-            positionLens(event.clientX, event.clientY);
-            drawMagnifier(event.clientX, event.clientY);
-            magCanvas.style.visibility = "visible";
-        };
-
-        const onLeave = () => {
-            magCanvas.style.visibility = "hidden";
-        };
-
-        canvas.addEventListener("click", construct_canvas);
-        canvas.addEventListener("mousemove", onMove);
-        canvas.addEventListener("mouseleave", onLeave);
-
-        return () => {
-            bitmapReady = false;
-            canvas.removeEventListener("click", construct_canvas);
-            canvas.removeEventListener("mousemove", onMove);
-            canvas.removeEventListener("mouseleave", onLeave);
-        };
-    }, [imgSrc]);
-
+function TargetManager() {
     return (
-        <div ref={containerRef} className="relative inline-block max-w-full max-h-full">
-            <canvas ref={canvasRef} className={className} />
-            <canvas
-                ref={magnifierRef}
-                width={MAG_LENS_CSS}
-                height={MAG_LENS_CSS}
-                className="absolute pointer-events-none rounded-full border-2 border-neutral-200 shadow-xl bg-neutral-900 ring-1 ring-black/20"
-                style={{
-                    width: MAG_LENS_CSS,
-                    height: MAG_LENS_CSS,
-                    left: 0,
-                    top: 0,
-                    visibility: "hidden",
-                }}
-            />
-        </div>
-    );
+        <DistanceTable></DistanceTable>
+    )
 }
-
 
 function LogView({ logs }) {
     return (
@@ -440,6 +338,5 @@ function LogView({ logs }) {
         </>
     );
 }
-
 
 export default App

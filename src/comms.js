@@ -1,3 +1,12 @@
+export const pendingByRequestId = new Map();
+
+function generateRequestId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 export class UAVConnection {
     constructor() {
         this.isConnected = false;
@@ -81,7 +90,12 @@ export class UAVConnection {
     sendMessage(message) {
         if (this.socket !== null) {
             if (this.socket.readyState == WebSocket.OPEN) {
-                this.socket.send(JSON.stringify(message));
+                return new Promise((resolve, reject) => {
+                    const requestId = generateRequestId();
+                    message.requestId = requestId;
+                    pendingByRequestId.set(requestId, { resolve, reject });
+                    this.socket.send(JSON.stringify(message));
+                });
             } else {
                 console.warn("connection not open");
             }
