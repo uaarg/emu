@@ -58,9 +58,17 @@ function App() {
 
             switch (json.type) {
                 case "point":
-                    pending.resolve(json.message);
-                    setLogs((prev) => [...prev, { message: `point: ${json.message}`, severity: "normal" }]);
-                    break;
+                    if (json.message === "invalid") {
+                        const msg = "invalid depth point";
+                        pending.reject(msg);
+                        setLogs((prev) => [...prev, { message: `point: ${msg}`, severity: "normal" }]);
+                        break;
+                    } else {
+                        const point = json.message;
+                        pending.resolve(json.message);
+                        setLogs((prev) => [...prev, { message: `point: (${point.x}, ${point.y}, ${point.z})`, severity: "normal" }]);
+                        break;
+                    }
             };
             return;
         }
@@ -215,9 +223,13 @@ function ImageLayout({ status, filename, sendFunc }) {
             message: {
                 pixel: point
             }
-        }).then(distPoint => {
-            saveTarget(targetInfo.name, imageUriToId(filename), distPoint);
-        });
+        })
+            .then(distPoint => {
+                saveTarget(targetInfo.name, imageUriToId(filename), distPoint);
+            })
+            .catch((error) => {
+
+            });
     }
 
     const [tabPick, setTabPick] = useState("image");
