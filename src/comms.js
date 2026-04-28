@@ -4,21 +4,32 @@ export class UAVConnection {
         this.socket = null;
         this.url = null;
         this.recvMessageCB = () => {}; // default callback to empty function
+        this.onWSOpen = () => {};
+        this.onWSClose = () => {};
     }
 
-    connect() {
+    setRecvMessageCB(newMsgCB) {
+        this.recvMessageCB = newMsgCB;
+    }
+
+    connect(url) {
         if (this.socket !== null) {
             console.warn("Connection attempt with already existing websocket. Aborting.");
             return;
         }
+        this.url = url;
         if (this.url === null) {
             console.warn("Cannot create connection: no URL specified. Ensure UAVConnection.url is set.")
             return;
         }
-        if (!this.url.ends.endsWith("/ws")) {
-            this.url = this.url + "/ws";
+        let modifiedUrl = this.url;
+        if (!this.url.endsWith("/ws")) {
+            modifiedUrl = this.url + "/ws";
         }
-        this.socket = new WebSocket(this.url);
+        else {
+            this.url = this.url.slice(0, -3);
+        }
+        this.socket = new WebSocket(modifiedUrl);
         this.socket.onopen = this.onOpen.bind(this);
         this.socket.onclose = this.onClose.bind(this);
         this.socket.onmessage = this.onMessage.bind(this);
@@ -29,17 +40,21 @@ export class UAVConnection {
         if (this.socket !== null) {
             this.socket.close();
         }
-        console.warn("Disconnection attempt while socket is null.");
+        else {
+            console.warn("Disconnection attempt while socket is null.");
+        }
     }    
 
     onOpen() {
         this.isConnected = true;
+        this.onWSOpen();
         console.log("websocket to backend opened");
     }
 
     onClose() {
         this.isConnected = false;
         this.socket = null;
+        this.onWSClose();
         console.log("websocket to backend closed");
     }
 

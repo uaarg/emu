@@ -1,4 +1,4 @@
-import { useUAVConnection } from './comms.js';
+import { UAVConnection } from './comms.js';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Card,
@@ -24,24 +24,24 @@ function App() {
     });
     const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
-    const [url, setUrl] = useState(null);
-
-    const onConnect = () => {
+    const wsConnRef = useRef(new UAVConnection());
+    const [isConnected, setIsConnected] = useState(false);
+    wsConnRef.current.onWSOpen = () => {
         setUavStatus(prev => ({
             ...prev,
             connection: "yes",
             mode: "null"
-        }))
-    }
-
-
-    const onDisconnect = () => {
+        }));
+        setIsConnected(true);
+    };
+    wsConnRef.current.onWSClose = () => {
         setUavStatus(prev => ({
             ...prev,
             connection: "no",
             mode: "null"
-        }))
-    }
+        }));
+        setIsConnected(false);
+    };
 
     const messageHandler = useCallback((json) => {
         setUavStatus(prev => ({
@@ -73,7 +73,7 @@ function App() {
                     ...prev,
                     imageCount: Number(prev.imageCount) + 1
                 }));
-                setImageName(url + json.value);
+                setImageName(wsConnRef.current.url + json.value);
                 break;
             case "distance":
                 console.log(json);
@@ -81,15 +81,9 @@ function App() {
                 break;
 
         };
-    }, [url]);
-
-    const sendMessage = useUAVConnection({ url: url, onMessage: messageHandler, onConnect: onConnect });
-    const handleConnect = (inputUrl) => {
-        // if url changes, reset connection status
-        onDisconnect()
-
-        setUrl(inputUrl);
-    }
+    }, []);
+    
+    wsConnRef.current.setRecvMessageCB(messageHandler);
 
     // make our time since last message actually go up
     useEffect(() => {
@@ -104,13 +98,16 @@ function App() {
 
     return (
         <div>
-            <ConnectComponent onConnect={handleConnect} />
+            <ConnectComponent isConnected={isConnected}
+                connect={wsConnRef.current.connect.bind(wsConnRef.current)}
+                disconnect={wsConnRef.current.disconnect.bind(wsConnRef.current)}
+            />
             <div className="flex w-screen h-screen">
                 <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                    <UAVStatus status={uavStatus} sendFunc={sendMessage} />
+                    <UAVStatus status={uavStatus}/>
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout status={uavStatus} filename={imageName} sendFunc={sendMessage} />
+                    <ImageLayout status={uavStatus} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
                 </div>
                 <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
                     <LogView logs={logs} />
@@ -121,18 +118,26 @@ function App() {
     );
 }
 
-function ConnectComponent({ onConnect }) {
+function ConnectComponent({ isConnected, connect, disconnect }) {
     const [url, setUrl] = useState("");
+    const connectBtnTxt = isConnected ? "Disconnect" : "Connect";
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!url) return;
-        onConnect(url);
+        if (!url) {
+            return;
+        }
+        if (isConnected) {
+            disconnect();
+        }
+        else {
+            connect(url);
+        }
     };
     return (
         <form className="flex items-center gap-2 m-2" onSubmit={handleSubmit}>
             <label> Drone URL </label>
             <Input className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" />
-            <Button type="submit" variant="outline"> Connect </Button>
+            <Button type="submit" variant="outline"> {connectBtnTxt} </Button>
         </form>
     );
 }
