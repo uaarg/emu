@@ -136,7 +136,7 @@ function App() {
                     <UAVStatus status={uavStatus}/>
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout status={uavStatus} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
+                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
                 </div>
                 <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
                     <LogView logs={logs} />
@@ -200,7 +200,7 @@ function UAVStatus({ status }) {
     );
 }
 
-function ImageLayout({ status, filename, sendFunc }) {
+function ImageLayout({ filename, isConnected, sendFunc }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -211,7 +211,7 @@ function ImageLayout({ status, filename, sendFunc }) {
 
     const handleCaptureImage = () => {
         // if no connection, just return
-        if (status.connection == "no") {
+        if (!isConnected) {
             alert("No connection with the drone");
             return;
         }
@@ -224,6 +224,10 @@ function ImageLayout({ status, filename, sendFunc }) {
     }
 
     const handlePointsClicked = async (point) => {
+        if (!isConnected) {
+            alert("No connection with the drone");
+            return;
+        }
         const targetInfoPromise = new Promise((resolve, reject) => {
             dialogPendingRef.current = { resolve, reject };
         });
