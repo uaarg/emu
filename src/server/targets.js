@@ -75,6 +75,7 @@ export function getAverages() {
   const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
   const pairMap = {};
 
+  // 1. Collect all distances
   for (const image of Object.values(data)) {
     if (!image.distances) continue;
 
@@ -86,21 +87,55 @@ export function getAverages() {
         pairMap[key] = {
           target1: names[0],
           target2: names[1],
-          total: 0,
-          count: 0
+          values: []
         };
       }
 
-      pairMap[key].total += pair.distance;
-      pairMap[key].count += 1;
+      pairMap[key].values.push(pair.distance);
     }
   }
 
-  return Object.values(pairMap).map((item) => ({
-    target1: item.target1,
-    target2: item.target2,
-    averageDistance: item.total / item.count
-  }));
+  // Helper functions
+  const mean = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+  const stdDev = (arr, avg) =>
+    Math.sqrt(arr.reduce((sum, val) => sum + (val - avg) ** 2, 0) / arr.length);
+
+  // 2. Trim outliers and compute average
+  return Object.values(pairMap).map((item) => {
+    const values = item.values;
+
+    if (values.length === 0) {
+      return {
+        target1: item.target1,
+        target2: item.target2,
+        averageDistance: null
+      };
+    } else if (values.length < 4) {
+      return {
+        target1: item.target1,
+        target2: item.target2,
+        averageDistance: mean(values)
+      };
+    }
+
+    const avg = mean(values);
+    const sd = stdDev(values, avg);
+
+    // keep values within 2 standard deviations
+    const filtered = values.filter(
+      (v) => Math.abs(v - avg) <= 2 * sd
+    );
+
+    const finalAvg =
+      filtered.length > 0 ? mean(filtered) : null; // null if all removed
+
+    return {
+      target1: item.target1,
+      target2: item.target2,
+      averageDistance: finalAvg
+    };
+  });
 }
 
 export function getImageNames() {

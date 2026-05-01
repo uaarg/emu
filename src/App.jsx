@@ -191,9 +191,17 @@ function ImageLayout({ status, filename, sendFunc }) {
     const [dialogOpen, setDialogOpen] = useState(false);
 
     const imageUriToId = (uri) => {
-        const filename = uri.split("/").pop();
-        return filename.replace(/\.[^/.]+$/, "");
-    }
+        const parts = uri.split("/").filter(Boolean);
+
+        if (parts.length >= 2) {
+            const last = parts[parts.length - 1].replace(/\.[^/.]+$/, "");
+            const secondLast = parts[parts.length - 2];
+            return `${secondLast}/${last}`;
+        }
+
+        // fallback (only one segment)
+        return parts[0]?.replace(/\.[^/.]+$/, "") || "";
+    };
 
     const handleCaptureImage = () => {
         // if no connection, just return
@@ -228,7 +236,7 @@ function ImageLayout({ status, filename, sendFunc }) {
                 saveTarget(targetInfo.name, imageUriToId(filename), distPoint);
             })
             .catch((error) => {
-
+                alert(error);
             });
     }
 

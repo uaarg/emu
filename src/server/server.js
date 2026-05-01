@@ -39,8 +39,8 @@ app.get("/api/imageNames", (_, res) => {
   res.json(imageNames);
 });
 
-app.get("/api/imageTargets/:imageId", (req, res) => {
-  const id = req.params.imageId;
+app.get("/api/imageTargets/:id1/:id2", (req, res) => {
+  const id = `${req.params.id1}/${req.params.id2}`;
   const targets = getImageTargets(id);
 
   res.json(targets);
