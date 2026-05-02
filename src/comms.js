@@ -1,3 +1,4 @@
+// stores requests Emu sends to Shepard in order for us to manage replies
 export const pendingByRequestId = new Map();
 
 function generateRequestId() {
@@ -7,12 +8,19 @@ function generateRequestId() {
     return `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
+/*
+ * Class to handle the websocket connection between the drone (shepard) and Emu
+ * when uavconnection.connect(url) is called it attempts to create a new connection.
+ * After this, UAVConnection.sendMessage(msg) can be used to send messages.
+ * To receive messages, register a callback with UAVConnection.setRecvMessageCB(cb) which
+ * will be called every time a message is received.
+ */
 export class UAVConnection {
     constructor() {
         this.isConnected = false;
         this.socket = null;
         this.url = null;
-        this.recvMessageCB = () => {}; // default callback to empty function
+        this.recvMessageCB = () => {};
         this.onWSOpen = () => {};
         this.onWSClose = () => {};
     }
@@ -66,7 +74,9 @@ export class UAVConnection {
         this.onWSClose();
         console.log("websocket to backend closed");
     }
-
+    
+    // internal use, when a message is recieved we get the message from the event and handle any errors
+    // before calling the user supplied callback.
     onMessage(event) {
         if (this.socket !== null) {
             try {
