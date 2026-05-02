@@ -53,47 +53,22 @@ function App() {
             ...prev,
             timeSinceMessage: Number(0)
         }));
-
-        if ("requestId" in json) {
-            const pending = pendingByRequestId.get(json.requestId);
-            if (!pending) return;
-            pendingByRequestId.delete(json.requestId);
-
-            switch (json.type) {
-                case "point":
-                    if (json.message === "invalid") {
-                        const msg = "invalid depth point";
-                        pending.reject(msg);
-                        setLogs((prev) => [...prev, { message: `point: ${msg}`, severity: "normal" }]);
-                        break;
-                    } else {
-                        const point = json.message;
-                        pending.resolve(json.message);
-                        setLogs((prev) => [...prev, { message: `point: (${point.x}, ${point.y}, ${point.z})`, severity: "normal" }]);
-                        break;
-                    }
-            };
-            return;
-        }
-
+        const pending = ("requestId" in json) ? pendingByRequestId.get(json.requestId) : null;
         switch (json.type) {
             case "status":
-                switch (json.status) {
-                    case "mode":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            mode: json.value
-                        }));
-                        break;
-                };
+                if (json.status === "mode") {
+                    setUavStatus(prev => ({
+                        ...prev,
+                        mode: json.value
+                    }));
+                }
                 break;
+            // sets most of the UI to show a specific image or uav status.
             case "load":
-                console.log("loading data");
                 setUavStatus(json.uavStatus);
                 setImageName(json.imageName);
                 break;
             case "log":
-                console.log("log");
                 setLogs((prev) => [...prev, { message: json.message, severity: json.severity }]);
                 break;
             case "img":
@@ -103,11 +78,22 @@ function App() {
                 }));
                 setImageName(wsConnRef.current.url + json.value);
                 break;
-            case "distance":
-                console.log(json);
-                setLogs((prev) => [...prev, { message: `distance: ${json.message}`, severity: "normal"}]);
-                break;
-
+            case "point":
+                if (!pending) {
+                    return;
+                }
+                pendingByRequestId.delete(json.requestId);
+                if (json.message === "invalid") {
+                    const msg = "invalid depth point";
+                    pending.reject(msg);
+                    setLogs((prev) => [...prev, { message: `point: ${msg}`, severity: "normal" }]);
+                    break;
+                } else {
+                    const point = json.message;
+                    pending.resolve(json.message);
+                    setLogs((prev) => [...prev, { message: `point: (${point.x}, ${point.y}, ${point.z})`, severity: "normal" }]);
+                    break;
+                }
         };
     }, []);
     
