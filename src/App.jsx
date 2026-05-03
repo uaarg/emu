@@ -1,4 +1,4 @@
-import { pendingByRequestId, useUAVConnection } from './comms.js';
+import { UAVConnection, pendingByRequestId } from './comms.js';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Card,
@@ -27,70 +27,48 @@ function App() {
     });
     const [imageName, setImageName] = useState("");
     const [logs, setLogs] = useState([]);
-    const [url, setUrl] = useState(null);
+    const wsConnRef = useRef(new UAVConnection());
+    const [isConnected, setIsConnected] = useState(false);
+    wsConnRef.current.onWSOpen = () => {
 
-    const onConnect = () => {
         setUavStatus(prev => ({
             ...prev,
             connection: "yes",
             mode: "null"
-        }))
-    }
+        }));
+        setIsConnected(true);
+    };
+    wsConnRef.current.onWSClose = () => {
 
-    const onDisconnect = () => {
         setUavStatus(prev => ({
             ...prev,
             connection: "no",
             mode: "null"
-        }))
-    }
+        }));
+        setIsConnected(false);
+    };
 
     const messageHandler = useCallback((json) => {
         setUavStatus(prev => ({
             ...prev,
             timeSinceMessage: Number(0)
         }));
-
-        if ("requestId" in json) {
-            const pending = pendingByRequestId.get(json.requestId);
-            if (!pending) return;
-            pendingByRequestId.delete(json.requestId);
-
-            switch (json.type) {
-                case "point":
-                    if (json.message === "invalid") {
-                        const msg = "invalid depth point";
-                        pending.reject(msg);
-                        setLogs((prev) => [...prev, { message: `point: ${msg}`, severity: "normal" }]);
-                        break;
-                    } else {
-                        const point = json.message;
-                        pending.resolve(json.message);
-                        setLogs((prev) => [...prev, { message: `point: (${point.x}, ${point.y}, ${point.z})`, severity: "normal" }]);
-                        break;
-                    }
-            };
-            return;
-        }
-
+        const pending = ("requestId" in json) ? pendingByRequestId.get(json.requestId) : null;
         switch (json.type) {
             case "status":
-                switch (json.status) {
-                    case "mode":
-                        setUavStatus(prev => ({
-                            ...prev,
-                            mode: json.value
-                        }));
-                        break;
-                };
+                if (json.status === "mode") {
+                    setUavStatus(prev => ({
+                        ...prev,
+                        mode: json.value
+                    }));
+                }
                 break;
+            // sets most of the UI to show a specific image or uav status.
             case "load":
-                console.log("loading data");
                 setUavStatus(json.uavStatus);
                 setImageName(json.imageName);
                 break;
             case "log":
-                console.log("log");
                 setLogs((prev) => [...prev, { message: json.message, severity: json.severity }]);
                 break;
             case "img":
@@ -98,18 +76,29 @@ function App() {
                     ...prev,
                     imageCount: Number(prev.imageCount) + 1
                 }));
-                setImageName(url + json.value);
+                setImageName(wsConnRef.current.url + json.value);
                 break;
+            case "point":
+                if (!pending) {
+                    return;
+                }
+                pendingByRequestId.delete(json.requestId);
+                if (json.message === "invalid") {
+                    const msg = "invalid depth point";
+                    pending.reject(msg);
+                    setLogs((prev) => [...prev, { message: `point: ${msg}`, severity: "normal" }]);
+                    break;
+                } else {
+                    const point = json.message;
+                    pending.resolve(json.message);
+                    setLogs((prev) => [...prev, { message: `point: (${point.x}, ${point.y}, ${point.z})`, severity: "normal" }]);
+                    break;
+                }
         };
-    }, [url]);
+    }, []);
+    
+    wsConnRef.current.setRecvMessageCB(messageHandler);
 
-    const sendMessage = useUAVConnection({ url: url, onMessage: messageHandler, onConnect: onConnect });
-    const handleConnect = (inputUrl) => {
-        // if url changes, reset connection status
-        onDisconnect()
-
-        setUrl(inputUrl);
-    }
 
     // make our time since last message actually go up
     useEffect(() => {
@@ -124,13 +113,16 @@ function App() {
 
     return (
         <div>
-            <ConnectComponent onConnect={handleConnect} />
+            <ConnectComponent isConnected={isConnected}
+                connect={wsConnRef.current.connect.bind(wsConnRef.current)}
+                disconnect={wsConnRef.current.disconnect.bind(wsConnRef.current)}
+            />
             <div className="flex w-screen h-screen">
                 <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
-                    <UAVStatus status={uavStatus} sendFunc={sendMessage} />
+                    <UAVStatus status={uavStatus}/>
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout status={uavStatus} filename={imageName} sendFunc={sendMessage} />
+                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
                 </div>
                 <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
                     <LogView logs={logs} />
@@ -141,18 +133,26 @@ function App() {
     );
 }
 
-function ConnectComponent({ onConnect }) {
+function ConnectComponent({ isConnected, connect, disconnect }) {
     const [url, setUrl] = useState("");
+    const connectBtnTxt = isConnected ? "Disconnect" : "Connect";
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!url) return;
-        onConnect(url);
+        if (!url) {
+            return;
+        }
+        if (isConnected) {
+            disconnect();
+        }
+        else {
+            connect(url);
+        }
     };
     return (
         <form className="flex items-center gap-2 m-2" onSubmit={handleSubmit}>
             <label> Drone URL </label>
-            <Input className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} defaultValue="http://100.91.180.106" />
-            <Button type="submit" variant="outline"> Connect </Button>
+            <Input className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" />
+            <Button type="submit" variant="outline"> {connectBtnTxt} </Button>
         </form>
     );
 }
@@ -186,7 +186,7 @@ function UAVStatus({ status }) {
     );
 }
 
-function ImageLayout({ status, filename, sendFunc }) {
+function ImageLayout({ filename, isConnected, sendFunc }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -205,7 +205,7 @@ function ImageLayout({ status, filename, sendFunc }) {
 
     const handleCaptureImage = () => {
         // if no connection, just return
-        if (status.connection == "no") {
+        if (!isConnected) {
             alert("No connection with the drone");
             return;
         }
@@ -218,6 +218,10 @@ function ImageLayout({ status, filename, sendFunc }) {
     }
 
     const handlePointsClicked = async (point) => {
+        if (!isConnected) {
+            alert("No connection with the drone");
+            return;
+        }
         const targetInfoPromise = new Promise((resolve, reject) => {
             dialogPendingRef.current = { resolve, reject };
         });
