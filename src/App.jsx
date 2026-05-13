@@ -11,7 +11,6 @@ import { ScrollArea } from './components/ui/scroll-area';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
-import Canvas from './components/Canvas.jsx';
 import { AddTargetDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
@@ -178,29 +177,28 @@ function ConnectComponent({ isConnected, connect, disconnect }) {
     );
 }
 
+function UAVStatusComponent({ label = "", value }) {
+    return (
+        <div className="flex justify-between items-center space-x-2">
+            <label className="basis-1/2">{label}</label>
+            <div className="basis-1/2 rounded-md border px-2 py-2 font-mono text-sm">
+                {value}
+            </div>
+        </div>
+    );
+}
+
 function UAVStatus({ status }) {
     return (
-        <Card className="w-full h-full">
-            <CardHeader className="pb-3">
-                <CardTitle className="text-sm">UAV</CardTitle>
+        <Card className="w-full h-full shadow-2xl">
+            <CardHeader>
+                <CardTitle>UAV</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-                <div className="flex justify-between text-xs">
-                    <span>Connected</span>
-                    <span className="font-mono">{status.connection}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                    <span>Mode</span>
-                    <span className="font-mono">{status.mode}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                    <span>Images</span>
-                    <span className="font-mono">{status.imageCount}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                    <span>Time</span>
-                    <span className="font-mono">{status.timeSinceMessage}s</span>
-                </div>
+                <UAVStatusComponent label="Connected" value={status.connection} />
+                <UAVStatusComponent label="Time since last message" value={`${status.timeSinceMessage} sec`} />
+                <UAVStatusComponent label="Current mode" value={status.mode} />
+                <UAVStatusComponent label="Pictures received" value={status.imageCount} />
             </CardContent>
         </Card>
     );
@@ -218,6 +216,20 @@ function MeasurementLayout({ selectedImage, isConnected, sendFunc }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [tabPick, setTabPick] = useState("image");
+
+    const handleCaptureImage = () => {
+        if (!isConnected) {
+            alert("No connection with the drone");
+            return;
+        }
+
+        sendFunc({
+            type: "image",
+            message: "capture"
+        }).catch((error) => {
+            alert(error);
+        });
+    };
 
     const handlePointsClicked = async (point, imageName) => {
         if (!isConnected) {
@@ -250,14 +262,19 @@ function MeasurementLayout({ selectedImage, isConnected, sendFunc }) {
     return (
         <Card className="w-full h-full flex flex-col">
             <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Viewer</CardTitle>
-                <Tabs defaultValue="image" onValueChange={setTabPick} className="mt-2">
-                    <TabsList className="grid w-full grid-cols-3 h-8">
-                        <TabsTrigger value="image" className="text-xs">Image</TabsTrigger>
-                        <TabsTrigger value="targetMgmt" className="text-xs">Measure</TabsTrigger>
-                        <TabsTrigger value="viewer" className="text-xs">3D</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-sm">Viewer</CardTitle>
+                        <Button size="sm" variant="outline" onClick={handleCaptureImage}>Capture Image</Button>
+                    </div>
+                    <Tabs defaultValue="image" onValueChange={setTabPick} className="mt-2">
+                        <TabsList className="grid w-full grid-cols-3 h-8">
+                            <TabsTrigger value="image" className="text-xs">Image</TabsTrigger>
+                            <TabsTrigger value="targetMgmt" className="text-xs">Measure</TabsTrigger>
+                            <TabsTrigger value="viewer" className="text-xs">3D</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
             </CardHeader>
 
             <CardContent className="flex-grow overflow-hidden p-2">
@@ -291,107 +308,6 @@ function MeasurementLayout({ selectedImage, isConnected, sendFunc }) {
                 )}
             </CardContent>
         </Card>
-    );
-}
-
-function ImageLayout({ filename, isConnected, sendFunc }) {
-    const dialogPendingRef = useRef(null);
-    const [dialogOpen, setDialogOpen] = useState(false);
-
-    const imageUriToId = (uri) => {
-        const parts = uri.split("/").filter(Boolean);
-
-        if (parts.length >= 2) {
-            const last = parts[parts.length - 1].replace(/\.[^/.]+$/, "");
-            const secondLast = parts[parts.length - 2];
-            return `${secondLast}/${last}`;
-        }
-
-        // fallback (only one segment)
-        return parts[0]?.replace(/\.[^/.]+$/, "") || "";
-    };
-
-    const handleCaptureImage = () => {
-        // if no connection, just return
-        if (!isConnected) {
-            alert("No connection with the drone");
-            return;
-        }
-
-        //request image from UAV
-        sendFunc({
-            type: "image",
-            message: "capture"
-        });
-    }
-
-    const handlePointsClicked = async (point) => {
-        if (!isConnected) {
-            alert("No connection with the drone");
-            return;
-        }
-        const targetInfoPromise = new Promise((resolve, reject) => {
-            dialogPendingRef.current = { resolve, reject };
-        });
-
-        setDialogOpen(true);
-        const targetInfo = await targetInfoPromise;
-        setDialogOpen(false);
-
-        sendFunc({
-            type: "getPoint",
-            message: {
-                pixel: point
-            }
-        })
-            .then(distPoint => {
-                saveTarget(targetInfo.name, imageUriToId(filename), distPoint);
-            })
-            .catch((error) => {
-                alert(error);
-            });
-    }
-
-    const [tabPick, setTabPick] = useState("image");
-
-    return (
-        <div className="relative w-full h-full">
-            <Card className="w-full h-full shadow-2xl flex flex-col">
-                <CardHeader>
-                    <CardTitle className="text-center w-full">
-                        Current Image
-                    </CardTitle>
-                </CardHeader>
-                <Button className="absolute right-7 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
-                <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
-                    <TabsList>
-                        <TabsTrigger value="image">Image</TabsTrigger>
-                        <TabsTrigger value="targetMgmt">Target Management</TabsTrigger>
-                        <TabsTrigger value="viewer">3D Viewer</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-                {tabPick === "image" && (
-                    <CardContent className="flex-grow flex items-center justify-center box-border">
-                        {dialogOpen && <AddTargetDialog dialogClose={() => setDialogOpen(false)} setFormData={data => {
-                            dialogPendingRef.current?.resolve(data)
-                            dialogPendingRef.current = null;
-                        }}></AddTargetDialog>}
-                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
-                        </Canvas>
-                    </CardContent>
-                )}
-                {tabPick === "targetMgmt" && (
-                    <CardContent>
-                        <TargetManager></TargetManager>
-                    </CardContent>
-                )}
-                {tabPick === "viewer" && (
-                    <CardContent className="h-full w-full">
-                        <TargetViewer />
-                    </CardContent>
-                )}
-            </Card>
-        </div >
     );
 }
 
