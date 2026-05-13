@@ -44,11 +44,7 @@ export function saveRGBDImage(imageName, rgbBuffer, depthBuffer, metadata = {}) 
     fs.writeFileSync(rgbPath, rgbBuffer);
   }
 
-  // Save depth image
-  const depthPath = path.join(imageDir, "depth.png");
-  if (depthBuffer) {
-    fs.writeFileSync(depthPath, depthBuffer);
-  }
+  // Do not save depth images; only RGB data is needed for frontend display.
 
   // Update library
   let library = JSON.parse(fs.readFileSync(LIBRARY_FILE, "utf8"));
@@ -61,7 +57,7 @@ export function saveRGBDImage(imageName, rgbBuffer, depthBuffer, metadata = {}) 
       height: metadata.height || 0,
       size: metadata.size || 0,
       hasRGB: !!rgbBuffer,
-      hasDepth: !!depthBuffer,
+      hasDepth: false,
     },
   };
 
@@ -99,7 +95,6 @@ export function getRGBDImageData(imageName) {
   }
 
   const rgbPath = path.join(imageDir, "rgb.png");
-  const depthPath = path.join(imageDir, "depth.png");
 
   const result = {
     imageName,
@@ -116,11 +111,6 @@ export function getRGBDImageData(imageName) {
     // Get metadata
     const stats = fs.statSync(rgbPath);
     result.metadata.size = stats.size;
-  }
-
-  // Read depth image
-  if (fs.existsSync(depthPath)) {
-    result.depthUrl = `/api/imageFile/${encodeURIComponent(imageName)}/depth`;
   }
 
   // Get from library for additional metadata
