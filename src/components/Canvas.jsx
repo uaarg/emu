@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 const MAG_LENS_CSS = 60;
 const MAG_ZOOM = 2.5;
 
-function Canvas({ imgSrc, onPointsClicked, className }) {
+function Canvas({ imgSrc, onPointsClicked, onImageLoaded, className }) {
   const canvasRef = useRef(null);
   const magnifierRef = useRef(null);
   const containerRef = useRef(null);
@@ -82,6 +82,7 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
       canvas.height = image.height;
       ctx.drawImage(image, 0, 0);
       bitmapReady = true;
+      onImageLoaded?.();
     };
     image.src = imgSrc;
 
