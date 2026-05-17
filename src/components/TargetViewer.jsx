@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useEffect, useState } from "react";
-import { fetchImageNames, fetchImageTargets } from "@/targets";
+import { fetchImageNames, fetchImageTargets } from "../targets";
 import { ButtonGroup } from "./ui/button-group";
 import { Button } from "./ui/button";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
@@ -132,37 +132,47 @@ export default function TargetViewer() {
     <div className="flex gap-2 flex-col h-full w-full">
       <ImageSelecter imageNames={imageNames} onSelect={imageId => setCurrImage(imageId)}></ImageSelecter>
       <div className="flex-auto rounded-md border overflow-hidden">
-        <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
-          <ambientLight intensity={0.8} />
-          <directionalLight position={[5, 10, 5]} intensity={1} />
-          <Grid args={[gridSize, gridDivisions]} />
-          <axesHelper args={[axisSize]} />
+        {imageNames.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-sm text-gray-500">
+            No images with measurements available
+          </div>
+        ) : !currImage ? (
+          <div className="flex items-center justify-center h-full text-sm text-gray-500">
+            Select an image to view measurements
+          </div>
+        ) : (
+          <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
+            <ambientLight intensity={0.8} />
+            <directionalLight position={[5, 10, 5]} intensity={1} />
+            <Grid args={[gridSize, gridDivisions]} />
+            <axesHelper args={[axisSize]} />
 
-          <OrbitControls makeDefault />
+            <OrbitControls makeDefault />
 
-          {Object.entries(scenePoints).map(([name, point]) => (
-            <TargetPoint key={name} name={name} point={point} />
-          ))}
+            {Object.entries(scenePoints).map(([name, point]) => (
+              <TargetPoint key={name} name={name} point={point} />
+            ))}
 
-          {Object.keys(scenePoints).length >= 2 &&
-            Object.entries(scenePoints)
-              .slice(1)
-              .map(([name, target], i) => {
-                const [prevName, prevTarget] = Object.entries(scenePoints)[i];
+            {Object.keys(scenePoints).length >= 2 &&
+              Object.entries(scenePoints)
+                .slice(1)
+                .map(([name, target], i) => {
+                  const [prevName, prevTarget] = Object.entries(scenePoints)[i];
 
-                return (
-                  <Line
-                    key={`${prevName}-${name}`}
-                    color="gray"
-                    points={[
-                      [prevTarget.x, prevTarget.y, prevTarget.z],
-                      [target.x, target.y, target.z],
-                    ]}
-                    lineWidth={2}
-                  />
-                );
-              })}
-        </Canvas>
+                  return (
+                    <Line
+                      key={`${prevName}-${name}`}
+                      color="gray"
+                      points={[
+                        [prevTarget.x, prevTarget.y, prevTarget.z],
+                        [target.x, target.y, target.z],
+                      ]}
+                      lineWidth={2}
+                    />
+                  );
+                })}
+          </Canvas>
+        )}
       </div>
     </div>
   );
