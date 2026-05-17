@@ -3,23 +3,17 @@ Emu readme
 Emu is UAARG's latest ground station imaging software. It is based on 
 the old ground station software - pigeon 
 
-Emu is used to:
-- Monitor drone status.
-- Send commands.
-- Display maps and images.
-- Log messages.
-- Create an SSH connection with the onboard computer.
+Emu currently can:
+- Monitor drone status
+- Display images
+- Log messages
 
 Emu does this through a combination of manual and
 automatic processes. The ultimate objective is to offer a view into 
 the drone's operations.
 
-# Warning
---------------
-**THIS REPOSITORY IS STILL UNDER DEVELOPMENT**
 
-
-Install front end dependancies
+Install dependancies
 --------------------
 For linux or MacOS
 ```
@@ -33,14 +27,17 @@ npm install --prefix
 npm install -D tailwindcss postcss autoprefixer
 ```
 
-Setup the python for testing
---------------------
-To test Emu install and setup Shephard.
-
 Running Emu
 --------------
+Two terminals will be needed. One for the frontend and one for the server.
+### run the server
+In the first terminal run the following:
+```
+npm run server
+```
+
 ### run the frontend
-From the base project directory run the gui using command
+In the second terminal run:
 ```
 npm run dev
 ```
