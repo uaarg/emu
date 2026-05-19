@@ -10,13 +10,14 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './compon
 import { ScrollArea } from './components/ui/scroll-area';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
-import Sliders from './Sliders.jsx';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
 import Canvas from './components/Canvas.jsx';
 import { AddTargetDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
+import ImageLibrary from './components/ImageLibrary.jsx';
+import RGBDViewer from './components/RGBDViewer.jsx';
 
 function App() {
     const [uavStatus, setUavStatus] = useState({
@@ -26,6 +27,7 @@ function App() {
         timeSinceMessage: 0
     });
     const [imageName, setImageName] = useState("");
+    const [selectedImage, setSelectedImage] = useState(null);
     const [logs, setLogs] = useState([]);
     const wsConnRef = useRef(new UAVConnection());
     const [isConnected, setIsConnected] = useState(false);
@@ -117,18 +119,37 @@ function App() {
                 connect={wsConnRef.current.connect.bind(wsConnRef.current)}
                 disconnect={wsConnRef.current.disconnect.bind(wsConnRef.current)}
             />
-            <div className="flex w-screen h-screen">
-                <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
+            <div className="flex w-screen h-screen gap-2 p-2">
+                {/* Left panel: UAV Status */}
+                <div className="w-[250px] flex-shrink-0 flex-grow-0">
                     <UAVStatus status={uavStatus}/>
                 </div>
-                <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
+                
+                {/* Center panel: Image Library and RGBD Viewer */}
+                <div className="flex-grow flex gap-2 min-w-[400px] min-h-[400px]">
+                    {/* Image Library */}
+                    <div className="w-[300px] flex-shrink-0">
+                        <FilingSystemLayout 
+                            selectedImage={selectedImage}
+                            onSelectImage={setSelectedImage}
+                        />
+                    </div>
+                    
+                    {/* RGBD Viewer and measurement tools */}
+                    <div className="flex-grow">
+                        <MeasurementLayout 
+                            selectedImage={selectedImage}
+                            isConnected={isConnected}
+                            sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)}
+                        />
+                    </div>
                 </div>
-                <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
+                
+                {/* Right panel: Logs */}
+                <div className="w-[350px] flex-shrink-0 flex-grow-0">
                     <LogView logs={logs} />
                 </div>
             </div>
-
         </div>
     );
 }
@@ -157,32 +178,119 @@ function ConnectComponent({ isConnected, connect, disconnect }) {
     );
 }
 
-function UAVStatusComponent({ label = "", value }) {
+function UAVStatus({ status }) {
     return (
-        <div className="flex justify-between items-center space-x-2">
-            <label className="basis-1/2">{label}</label>
-            <div className="basis-1/2 rounded-md border px-2 py-2 font-mono text-sm">
-                {value}
-            </div>
-        </div>
+        <Card className="w-full h-full">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-sm">UAV</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                <div className="flex justify-between text-xs">
+                    <span>Connected</span>
+                    <span className="font-mono">{status.connection}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                    <span>Mode</span>
+                    <span className="font-mono">{status.mode}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                    <span>Images</span>
+                    <span className="font-mono">{status.imageCount}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                    <span>Time</span>
+                    <span className="font-mono">{status.timeSinceMessage}s</span>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
-function UAVStatus({ status }) {
+function FilingSystemLayout({ selectedImage, onSelectImage }) {
+    return <ImageLibrary onSelectImage={onSelectImage} selectedImage={selectedImage} />;
+}
+
+/**
+ * MeasurementLayout displays the selected image with measurement tools
+ * Points taken on the image are only recorded when the image is displayed
+ */
+function MeasurementLayout({ selectedImage, isConnected, sendFunc }) {
+    const dialogPendingRef = useRef(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [tabPick, setTabPick] = useState("image");
+
+    const handlePointsClicked = async (point, imageName) => {
+        if (!isConnected) {
+            alert("No connection with the drone");
+            return;
+        }
+
+        const targetInfoPromise = new Promise((resolve, reject) => {
+            dialogPendingRef.current = { resolve, reject };
+        });
+
+        setDialogOpen(true);
+        const targetInfo = await targetInfoPromise;
+        setDialogOpen(false);
+
+        sendFunc({
+            type: "getPoint",
+            message: {
+                pixel: point
+            }
+        })
+            .then(distPoint => {
+                saveTarget(targetInfo.name, imageName, distPoint);
+            })
+            .catch((error) => {
+                alert(error);
+            });
+    };
+
     return (
-        <>
-            <Card className="w-full h-full shadow-2xl">
-                <CardHeader>
-                    <CardTitle>UAV</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    <UAVStatusComponent label="Connected" value={status.connection} />
-                    <UAVStatusComponent label="Time since last message" value={`${status.timeSinceMessage} sec`} />
-                    <UAVStatusComponent label="Current mode" value={status.mode} />
-                    <UAVStatusComponent label="Pictures received" value={status.imageCount} />
-                </CardContent>
-            </Card>
-        </>
+        <Card className="w-full h-full flex flex-col">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Viewer</CardTitle>
+                <Tabs defaultValue="image" onValueChange={setTabPick} className="mt-2">
+                    <TabsList className="grid w-full grid-cols-3 h-8">
+                        <TabsTrigger value="image" className="text-xs">Image</TabsTrigger>
+                        <TabsTrigger value="targetMgmt" className="text-xs">Measure</TabsTrigger>
+                        <TabsTrigger value="viewer" className="text-xs">3D</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+            </CardHeader>
+
+            <CardContent className="flex-grow overflow-hidden p-2">
+                {dialogOpen && <AddTargetDialog dialogClose={() => setDialogOpen(false)} setFormData={data => {
+                    dialogPendingRef.current?.resolve(data);
+                    dialogPendingRef.current = null;
+                }}/>}
+                
+                {tabPick === "image" && <RGBDViewer imageName={selectedImage} onPointsClicked={handlePointsClicked} />}
+                {tabPick === "targetMgmt" && (
+                    !selectedImage ? (
+                        <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-gray-500">
+                            <div>Nothing to measure yet</div>
+                            <div>Select an image from the library or return to the Image tab.</div>
+                            <Button size="sm" variant="outline" onClick={() => setTabPick('image')}>Back to library</Button>
+                        </div>
+                    ) : (
+                        <DistanceTable />
+                    )
+                )}
+                {tabPick === "viewer" && (
+                    !selectedImage ? (
+                        <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-gray-500">
+                            <div>Nothing to measure yet</div>
+                            <div>Select an image from the library or return to the Image tab.</div>
+                            <Button size="sm" variant="outline" onClick={() => setTabPick('image')}>Back to library</Button>
+                        </div>
+                    ) : (
+                        <TargetViewer />
+                    )
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -282,58 +390,33 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                         <TargetViewer />
                     </CardContent>
                 )}
-                <Sliders sendFunc={sendFunc} />
             </Card>
         </div >
     );
 }
 
-function TargetManager() {
-    return (
-        <DistanceTable></DistanceTable>
-    )
-}
-
 function LogView({ logs }) {
     return (
-        <>
-            <Card className="w-full h-full shadow-2xl flex flex-col">
-                <CardHeader>
-                    <CardTitle className="text-center w-full">
-                        Logs
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col flex-grow min-h-0">
-                    <ScrollArea className="flex-grow min-h-0">
-                        <table className="w-full table-auto">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[80px]"> Severity </TableHead>
-                                    <TableHead> Message </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {logs.map((log, index) => {
-                                    let rowClass = "";
-                                    if (log.severity == "warning") {
-                                        rowClass = "bg-red-100";
-                                    } else if (log.severity == "error") {
-                                        rowClass = "bg-orange-100";
-                                    }
-
-                                    return (
-                                        <TableRow key={index} className={rowClass}>
-                                            <TableCell className="w-[80px]"> {log.severity} </TableCell>
-                                            <TableCell> {log.message} </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </table>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
-        </>
+        <Card className="w-full h-full flex flex-col">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Logs</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-grow overflow-hidden p-2">
+                <ScrollArea className="h-full">
+                    <div className="space-y-1 text-xs">
+                        {logs.map((log, i) => (
+                            <div key={i} className={`p-1 rounded ${
+                                log.severity === "warning" ? "bg-red-100 text-red-700" :
+                                log.severity === "error" ? "bg-orange-100 text-orange-700" :
+                                "bg-gray-100"
+                            }`}>
+                                <span className="font-mono text-xs">[{log.severity}]</span> {log.message}
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </CardContent>
+        </Card>
     );
 }
 
