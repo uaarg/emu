@@ -10,7 +10,6 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './compon
 import { ScrollArea } from './components/ui/scroll-area';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
-import Sliders from './Sliders.jsx';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
 import Canvas from './components/Canvas.jsx';
 import { AddTargetDialog } from './components/Dialog.jsx';
@@ -282,7 +281,6 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                         <TargetViewer />
                     </CardContent>
                 )}
-                <Sliders sendFunc={sendFunc} />
             </Card>
         </div >
     );
