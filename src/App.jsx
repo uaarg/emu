@@ -13,7 +13,7 @@ import { Button } from './components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
 import Canvas from './components/Canvas.jsx';
 import { AddTargetDialog } from './components/Dialog.jsx';
-import { saveTarget } from './targets.js';
+import { saveTarget, saveImageFromUrl} from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
 
@@ -216,6 +216,19 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
         });
     }
 
+    const handleSaveImage = () => {
+        // if no connection, just return
+        if (!isConnected) {
+            alert("No connection with the drone");
+            return;
+        }
+        const canvas = document.getElementById("img_canvas");
+        canvas.toBlob((blob) => {
+
+        });
+
+    }
+
     const handlePointsClicked = async (point) => {
         if (!isConnected) {
             alert("No connection with the drone");
@@ -242,32 +255,33 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                 alert(error);
             });
     }
-
+    
     const [tabPick, setTabPick] = useState("image");
 
     return (
         <div className="relative w-full h-full">
             <Card className="w-full h-full shadow-2xl flex flex-col">
-                <CardHeader>
-                    <CardTitle className="text-center w-full">
-                        Current Image
-                    </CardTitle>
+                <CardHeader className="m-3">
+                    <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
+                        <TabsList>
+                            <TabsTrigger value="image">Image</TabsTrigger>
+                            <TabsTrigger value="targetMgmt">Target Management</TabsTrigger>
+                            <TabsTrigger value="viewer">3D Viewer</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    <div className="absolute right-7 top-5" >
+                        <Button className="shadow-lg me-2" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
+                        <Button className="shadow-lg" onClick={handleSaveImage} variant="outline">Save Image</Button>
+                    </div>
                 </CardHeader>
-                <Button className="absolute right-7 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
-                <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
-                    <TabsList>
-                        <TabsTrigger value="image">Image</TabsTrigger>
-                        <TabsTrigger value="targetMgmt">Target Management</TabsTrigger>
-                        <TabsTrigger value="viewer">3D Viewer</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+
                 {tabPick === "image" && (
                     <CardContent className="flex-grow flex items-center justify-center box-border">
                         {dialogOpen && <AddTargetDialog dialogClose={() => setDialogOpen(false)} setFormData={data => {
                             dialogPendingRef.current?.resolve(data)
                             dialogPendingRef.current = null;
                         }}></AddTargetDialog>}
-                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
+                        <Canvas id="img_canvas" imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
                         </Canvas>
                     </CardContent>
                 )}

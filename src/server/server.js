@@ -46,6 +46,10 @@ app.get("/api/imageTargets/:id1/:id2", (req, res) => {
   res.json(targets);
 });
 
+app.post("/api/saveImage", (req, res) => {
+
+});
+
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });
