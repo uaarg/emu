@@ -46,9 +46,36 @@ app.get("/api/imageTargets/:id1/:id2", (req, res) => {
   res.json(targets);
 });
 
-app.post("/api/saveImage", (req, res) => {
+app.post(
+  "/api/saveImage",
+  express.raw({ type: "image/*", limit: "20mb" }),
+  (req, res) => {
+    const imageId = req.query.imageId;
+    const contentType = req.headers["content-type"];
 
-});
+    if (!imageId) {
+      return res.status(400).json({ error: "Missing imageId query parameter" });
+    }
+
+    if (!contentType || !contentType.startsWith("image/")) {
+      return res.status(400).json({ error: "Expected image content type" });
+    }
+
+    const extension = contentType === "image/jpeg" ? "jpg" : "png";
+    const dataDir = path.join(process.cwd(), "data", "images");
+    const safeId = imageId.replace(/[^a-zA-Z0-9_\-./]/g, "_");
+    const imagePath = path.join(dataDir, `${safeId}.${extension}`);
+
+    try {
+      fs.mkdirSync(path.dirname(imagePath), { recursive: true });
+      fs.writeFileSync(imagePath, req.body);
+      res.json({ success: true, savedTo: imagePath });
+    } catch (error) {
+      console.error("Failed to save image:", error);
+      res.status(500).json({ error: "Unable to save image" });
+    }
+  }
+);
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

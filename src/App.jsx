@@ -13,7 +13,7 @@ import { Button } from './components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
 import Canvas from './components/Canvas.jsx';
 import { AddTargetDialog } from './components/Dialog.jsx';
-import { saveTarget, saveImageFromUrl} from './targets.js';
+import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
 
@@ -188,6 +188,7 @@ function UAVStatus({ status }) {
 function ImageLayout({ filename, isConnected, sendFunc }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [saveIndex, setSaveIndex] = useState(1);
 
     const imageUriToId = (uri) => {
         const parts = uri.split("/").filter(Boolean);
@@ -217,16 +218,37 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
     }
 
     const handleSaveImage = () => {
-        // if no connection, just return
         if (!isConnected) {
             alert("No connection with the drone");
             return;
         }
+
         const canvas = document.getElementById("img_canvas");
+        if (!canvas) {
+            alert("Canvas not ready yet.");
+            return;
+        }
+
         canvas.toBlob((blob) => {
+            if (!blob) {
+                alert("Unable to capture image from canvas.");
+                return;
+            }
 
-        });
+            const fileName = `image${saveIndex}.png`;
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
 
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            setSaveIndex((prev) => prev + 1);
+            alert(`Image download started as ${fileName}.`);
+        }, "image/png");
     }
 
     const handlePointsClicked = async (point) => {

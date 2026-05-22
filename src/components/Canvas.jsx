@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 const MAG_LENS_CSS = 60;
 const MAG_ZOOM = 2.5;
 
-function Canvas({ imgSrc, onPointsClicked, className }) {
+function Canvas({ id, imgSrc, onPointsClicked, className }) {
   const canvasRef = useRef(null);
   const magnifierRef = useRef(null);
   const containerRef = useRef(null);
@@ -122,7 +122,7 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
 
   return (
     <div ref={containerRef} className="relative inline-block max-w-full max-h-full">
-      <canvas ref={canvasRef} className={className} />
+      <canvas id={id} ref={canvasRef} className={className} />
       <canvas
         ref={magnifierRef}
         width={MAG_LENS_CSS}
