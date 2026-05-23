@@ -218,10 +218,11 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
         });
     }
 
-    const handleSaveImage = () => {
+    const handleSaveImage = async () => {
         console.log("saving image");
-        const did_work = saveImage(filename, saveIndex)
+        const did_work = await saveImage(filename, saveIndex);
         if (did_work === true) {
+            console.log("updating image idx");
             setSaveIndex(idx => idx+1);
         }
     }
@@ -269,7 +270,7 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                     <div className="absolute right-7 top-5" >
                         <Button className="shadow-lg me-2" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
                         <Button className="shadow-lg me-2" onClick={handleSaveImage} variant="outline">Save Image</Button>
-                        <Input className="w-fit max-w-20 inline-block" type="number" onChange={(e) => setSaveIndex(Number(e.target.value))} value={saveIndex} />
+                        <Input id="img_idx" className="w-fit max-w-20 inline-block" type="number" onChange={(e) => setSaveIndex(Number(e.target.value))} value={saveIndex} />
                     </div>
                 </CardHeader>
 

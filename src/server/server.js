@@ -52,6 +52,7 @@ app.get("/api/imageTargets/:id1/:id2", (req, res) => {
 
 app.post(
     "/api/saveImage", async (req, res) => {
+    console.log("received");
     try {
         const body = req.body;
         console.log(body);
@@ -68,6 +69,7 @@ app.post(
         const response = await fetch(img_url, {method: "GET"});
         const buffer = Buffer.from(await response.arrayBuffer());
         fs.writeFileSync(imagePath, buffer);
+        console.log("done getting image");
         
         res.end('Success');
 
