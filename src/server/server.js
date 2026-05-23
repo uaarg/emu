@@ -66,17 +66,22 @@ app.post(
     const safeId = imageId.replace(/[^a-zA-Z0-9_\-./]/g, "_");
     const imagePath = path.join(dataDir, `${safeId}.${extension}`);
 
-    await fetch()
+    await fetch(imageId, {method: "GET"})
+      .then((response) => response.blob())
+      .then((blob) => {
+        const buffer = Buffer.from(blob.arrayBuffer());
 
-    try {
-      fs.mkdirSync(path.dirname(imagePath), { recursive: true });
-      fs.writeFileSync(imagePath, req.body);
-      res.json({ success: true, savedTo: imagePath });
-    } catch (error) {
-      console.error("Failed to save image:", error);
-      res.status(500).json({ error: "Unable to save image" });
-    }
-  }
+
+      try {
+        fs.mkdirSync(path.dirname(imagePath), { recursive: true });
+        fs.writeFileSync(imagePath, req.body);
+        res.json({ success: true, savedTo: imagePath });
+      } catch (error) {
+        console.error("Failed to save image:", error);
+        res.status(500).json({ error: "Unable to save image" });
+      }
+    
+    })  }
 );
 
 app.listen(PORT, () => {
