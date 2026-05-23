@@ -16,7 +16,7 @@ import { AddTargetDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
-import { saveImage } from './server/image.js';
+import { saveImage } from './image.js';
 
 function App() {
     const [uavStatus, setUavStatus] = useState({
@@ -219,7 +219,11 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
     }
 
     const handleSaveImage = () => {
-        saveImage(filename, saveIndex)
+        console.log("saving image");
+        const did_work = saveImage(filename, saveIndex)
+        if (did_work === true) {
+            setSaveIndex(idx => idx+1);
+        }
     }
 
     const handlePointsClicked = async (point) => {
@@ -264,7 +268,8 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                     </Tabs>
                     <div className="absolute right-7 top-5" >
                         <Button className="shadow-lg me-2" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
-                        <Button className="shadow-lg" onClick={handleSaveImage} variant="outline">Save Image</Button>
+                        <Button className="shadow-lg me-2" onClick={handleSaveImage} variant="outline">Save Image</Button>
+                        <Input className="w-fit max-w-20 inline-block" type="number" onChange={(e) => setSaveIndex(Number(e.target.value))} value={saveIndex} />
                     </div>
                 </CardHeader>
 

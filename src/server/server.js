@@ -1,5 +1,9 @@
 import express from "express";
 import { addTarget, getAverages, getImageNames, getImageTargets } from "./targets.js";
+import path from "path";
+import process from "process";
+import fs from "fs";
+import { Buffer } from "buffer";
 
 const app = express();
 const PORT = 3000;
@@ -47,42 +51,33 @@ app.get("/api/imageTargets/:id1/:id2", (req, res) => {
 });
 
 app.post(
-  "/api/saveImage",
-  express.raw({ type: "image/*", limit: "20mb" }),
-  (req, res) => {
-    const imageId = req.body;
-    const contentType = req.headers["content-type"];
+    "/api/saveImage", async (req, res) => {
+    try {
+        const body = req.body;
+        console.log(body);
+        const img_url = body.url;
+        const img_idx = body.index;
 
-    if (!imageId) {
-      return res.status(400).json({ error: "Missing imageId query parameter" });
+        const img_dir = path.join(process.cwd(), "images");
+        if (!fs.existsSync(img_dir)) {
+          fs.mkdirSync(img_dir, { recursive: true });
+        }
+        const imagePath = path.join(img_dir, `Task_2_UAARG_target_${img_idx}.jpeg`);
+        console.log(imagePath);
+
+        const response = await fetch(img_url, {method: "GET"});
+        const buffer = Buffer.from(await response.arrayBuffer());
+        fs.writeFileSync(imagePath, buffer);
+        
+        res.end('Success');
+
+    } catch(error) {
+     console.error(error);
+        res.statusCode = 400;
+        res.end('Error');
     }
-
-    if (!contentType || !contentType.startsWith("image/")) {
-      return res.status(400).json({ error: "Expected image content type" });
-    }
-
-    const extension = contentType === "image/jpeg" ? "jpg" : "png";
-    const dataDir = path.join(process.cwd(), "data", "images");
-    const safeId = imageId.replace(/[^a-zA-Z0-9_\-./]/g, "_");
-    const imagePath = path.join(dataDir, `${safeId}.${extension}`);
-
-    await fetch(imageId, {method: "GET"})
-      .then((response) => response.blob())
-      .then((blob) => {
-        const buffer = Buffer.from(blob.arrayBuffer());
-
-
-      try {
-        fs.mkdirSync(path.dirname(imagePath), { recursive: true });
-        fs.writeFileSync(imagePath, req.body);
-        res.json({ success: true, savedTo: imagePath });
-      } catch (error) {
-        console.error("Failed to save image:", error);
-        res.status(500).json({ error: "Unable to save image" });
-      }
     
-    })  }
-);
+});
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
