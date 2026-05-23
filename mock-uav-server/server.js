@@ -120,6 +120,16 @@ wss.on("connection", (ws) => {
         message: `aim vertical=${msg.vertical} horizontal=${msg.horizontal}`,
         severity: "normal",
       });
+      return;
+    }
+
+    if (msg.type === "led") {
+      sendJson(ws, {
+        type: "log",
+        message: `LED ${msg.state ? "on" : "off"}`,
+        severity: "normal",
+      });
+      return;
     }
   });
 });

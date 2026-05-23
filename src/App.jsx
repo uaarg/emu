@@ -8,15 +8,16 @@ import {
 } from './components/ui/card'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table.jsx';
 import { ScrollArea } from './components/ui/scroll-area';
-import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import Sliders from './Sliders.jsx';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
 import Canvas from './components/Canvas.jsx';
+import { Spinner } from './components/ui/spinner.jsx';
 import { AddTargetDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
+import { Navbar } from './components/Navbar.jsx';
 
 function App() {
     const [uavStatus, setUavStatus] = useState({
@@ -29,8 +30,36 @@ function App() {
     const [logs, setLogs] = useState([]);
     const wsConnRef = useRef(new UAVConnection());
     const [isConnected, setIsConnected] = useState(false);
-    wsConnRef.current.onWSOpen = () => {
+    const [autoReconnect, setAutoReconnect] = useState(false);
+    const [ledOn, setLedOn] = useState(false);
+    const autoReconnectRef = useRef(false);
+    const lastUrlRef = useRef(null);
+    const manualDisconnectRef = useRef(false);
 
+    const handleConnect = (url) => {
+        lastUrlRef.current = url;
+        manualDisconnectRef.current = false;
+        wsConnRef.current.connect(url);
+    };
+
+    const handleDisconnect = () => {
+        manualDisconnectRef.current = true;
+        wsConnRef.current.disconnect();
+    };
+
+    const handleAutoReconnectChange = (value) => {
+        setAutoReconnect(value);
+        autoReconnectRef.current = value;
+    };
+
+    const handleLedChange = (value) => {
+        setLedOn(value);
+        if (isConnected) {
+            wsConnRef.current.sendMessage({ type: "led", state: value });
+        }
+    };
+
+    wsConnRef.current.onWSOpen = () => {
         setUavStatus(prev => ({
             ...prev,
             connection: "yes",
@@ -39,13 +68,21 @@ function App() {
         setIsConnected(true);
     };
     wsConnRef.current.onWSClose = () => {
-
         setUavStatus(prev => ({
             ...prev,
             connection: "no",
             mode: "null"
         }));
         setIsConnected(false);
+
+        if (autoReconnectRef.current && !manualDisconnectRef.current && lastUrlRef.current) {
+            setTimeout(() => {
+                if (autoReconnectRef.current && lastUrlRef.current) {
+                    wsConnRef.current.connect(lastUrlRef.current);
+                }
+            }, 3000);
+        }
+        manualDisconnectRef.current = false;
     };
 
     const messageHandler = useCallback((json) => {
@@ -112,12 +149,17 @@ function App() {
     }, []);
 
     return (
-        <div>
-            <ConnectComponent isConnected={isConnected}
-                connect={wsConnRef.current.connect.bind(wsConnRef.current)}
-                disconnect={wsConnRef.current.disconnect.bind(wsConnRef.current)}
+        <div className="flex flex-col h-screen">
+            <Navbar
+                isConnected={isConnected}
+                connect={handleConnect}
+                disconnect={handleDisconnect}
+                autoReconnect={autoReconnect}
+                onAutoReconnectChange={handleAutoReconnectChange}
+                ledOn={ledOn}
+                onLedChange={handleLedChange}
             />
-            <div className="flex w-screen h-screen">
+            <div className="flex flex-1 min-h-0 w-screen">
                 <div className="w-[250px] min-h-[400px] flex-shrink-0 flex-grow-0 p-4">
                     <UAVStatus status={uavStatus}/>
                 </div>
@@ -128,34 +170,10 @@ function App() {
                     <LogView logs={logs} />
                 </div>
             </div>
-
         </div>
     );
 }
 
-function ConnectComponent({ isConnected, connect, disconnect }) {
-    const [url, setUrl] = useState("");
-    const connectBtnTxt = isConnected ? "Disconnect" : "Connect";
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!url) {
-            return;
-        }
-        if (isConnected) {
-            disconnect();
-        }
-        else {
-            connect(url);
-        }
-    };
-    return (
-        <form className="flex items-center gap-2 m-2" onSubmit={handleSubmit}>
-            <label> Drone URL </label>
-            <Input className="max-w-sm" type="text" onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:800" />
-            <Button type="submit" variant="outline"> {connectBtnTxt} </Button>
-        </form>
-    );
-}
 
 function UAVStatusComponent({ label = "", value }) {
     return (
@@ -189,6 +207,7 @@ function UAVStatus({ status }) {
 function ImageLayout({ filename, isConnected, sendFunc }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [isImageLoading, setIsImageLoading] = useState(false);
 
     const imageUriToId = (uri) => {
         const parts = uri.split("/").filter(Boolean);
@@ -210,7 +229,7 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
             return;
         }
 
-        //request image from UAV
+        setIsImageLoading(true);
         sendFunc({
             type: "image",
             message: "capture"
@@ -263,12 +282,17 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                     </TabsList>
                 </Tabs>
                 {tabPick === "image" && (
-                    <CardContent className="flex-grow flex items-center justify-center box-border">
+                    <CardContent className="flex-grow flex items-center justify-center box-border relative">
                         {dialogOpen && <AddTargetDialog dialogClose={() => setDialogOpen(false)} setFormData={data => {
                             dialogPendingRef.current?.resolve(data)
                             dialogPendingRef.current = null;
                         }}></AddTargetDialog>}
-                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
+                        {isImageLoading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/60 z-10 rounded-md">
+                                <Spinner className="size-10 text-muted-foreground" />
+                            </div>
+                        )}
+                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} onImageLoaded={() => setIsImageLoading(false)} className="object-contain max-w-full max-h-full">
                         </Canvas>
                     </CardContent>
                 )}
