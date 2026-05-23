@@ -218,14 +218,9 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
     }
 
     const handleSaveImage = () => {
-        if (!isConnected) {
-            alert("No connection with the drone");
-            return;
-        }
-
         const canvas = document.getElementById("img_canvas");
         if (!canvas) {
-            alert("Canvas not ready yet.");
+            alert("No image available to save.");
             return;
         }
 
@@ -235,10 +230,9 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                 return;
             }
 
-            const fileName = `image${saveIndex}.png`;
+            const fileName = `Task_2_Alberta_target_${saveIndex}.jpg`;
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-
             link.href = url;
             link.download = fileName;
             document.body.appendChild(link);
@@ -248,7 +242,7 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
 
             setSaveIndex((prev) => prev + 1);
             alert(`Image download started as ${fileName}.`);
-        }, "image/png");
+        }, "image/jpeg", 0.85);
     }
 
     const handlePointsClicked = async (point) => {
