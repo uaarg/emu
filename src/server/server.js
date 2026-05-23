@@ -50,7 +50,7 @@ app.post(
   "/api/saveImage",
   express.raw({ type: "image/*", limit: "20mb" }),
   (req, res) => {
-    const imageId = req.query.imageId;
+    const imageId = req.body;
     const contentType = req.headers["content-type"];
 
     if (!imageId) {
@@ -65,6 +65,8 @@ app.post(
     const dataDir = path.join(process.cwd(), "data", "images");
     const safeId = imageId.replace(/[^a-zA-Z0-9_\-./]/g, "_");
     const imagePath = path.join(dataDir, `${safeId}.${extension}`);
+
+    await fetch()
 
     try {
       fs.mkdirSync(path.dirname(imagePath), { recursive: true });

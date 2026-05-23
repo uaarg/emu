@@ -16,6 +16,7 @@ import { AddTargetDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
+import { saveImage } from './server/image.js';
 
 function App() {
     const [uavStatus, setUavStatus] = useState({
@@ -218,31 +219,7 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
     }
 
     const handleSaveImage = () => {
-        const canvas = document.getElementById("img_canvas");
-        if (!canvas) {
-            alert("No image available to save.");
-            return;
-        }
-
-        canvas.toBlob((blob) => {
-            if (!blob) {
-                alert("Unable to capture image from canvas.");
-                return;
-            }
-
-            const fileName = `Task_2_Alberta_target_${saveIndex}.jpg`;
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            setSaveIndex((prev) => prev + 1);
-            alert(`Image download started as ${fileName}.`);
-        }, "image/jpeg", 0.85);
+        saveImage(filename, saveIndex)
     }
 
     const handlePointsClicked = async (point) => {

@@ -21,6 +21,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.10",
+    "Buffer": "^0.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "express": "^5.2.1",
