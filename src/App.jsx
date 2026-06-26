@@ -1,5 +1,5 @@
 import { UAVConnection, pendingByRequestId } from './comms.js';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
     Card,
     CardTitle,
@@ -13,7 +13,7 @@ import Sliders from './Sliders.jsx';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs.jsx';
 import Canvas from './components/Canvas.jsx';
 import { Spinner } from './components/ui/spinner.jsx';
-import { AddTargetDialog } from './components/Dialog.jsx';
+import { AddTargetDialog, NameImageDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
@@ -27,6 +27,8 @@ function App() {
         timeSinceMessage: 0
     });
     const [imageName, setImageName] = useState("");
+    const [imageHistory, setImageHistory] = useState([]);
+    const [namingImage, setNamingImage] = useState(null);
     const [logs, setLogs] = useState([]);
     const wsConnRef = useRef(new UAVConnection());
     const [isConnected, setIsConnected] = useState(false);
@@ -108,13 +110,30 @@ function App() {
             case "log":
                 setLogs((prev) => [...prev, { message: json.message, severity: json.severity }]);
                 break;
-            case "img":
+            case "img": {
                 setUavStatus(prev => ({
                     ...prev,
                     imageCount: Number(prev.imageCount) + 1
                 }));
-                setImageName(wsConnRef.current.url + json.value);
+                const droneUrl = wsConnRef.current.url + json.value;
+                setImageName(droneUrl);
+                fetch("/api/saveImage", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: droneUrl })
+                })
+                    .then(r => r.json())
+                    .then(({ filename, savedAt }) => {
+                        const localUrl = `/api/images/${filename}`;
+                        setImageHistory(prev => [...prev, { url: localUrl, savedAt, name: "" }]);
+                        setImageName(localUrl);
+                        setNamingImage({ url: localUrl, filename });
+                    })
+                    .catch(() => {
+                        setImageHistory(prev => [...prev, { url: droneUrl, savedAt: Date.now() }]);
+                    });
                 break;
+            }
             case "point":
                 if (!pending) {
                     return;
@@ -137,6 +156,19 @@ function App() {
     wsConnRef.current.setRecvMessageCB(messageHandler);
 
 
+    useEffect(() => {
+        fetch("/api/savedImages")
+            .then(r => r.json())
+            .then(files => {
+                setImageHistory(files.map(f => ({
+                    url: `/api/images/${f.filename}`,
+                    savedAt: f.savedAt,
+                    name: f.name || ""
+                })));
+            })
+            .catch(() => {});
+    }, []);
+
     // make our time since last message actually go up
     useEffect(() => {
         const interval = setInterval(() => {
@@ -148,8 +180,22 @@ function App() {
         return () => clearInterval(interval);
     }, []);
 
+    const handleImageNameConfirm = (name) => {
+        if (!namingImage) return;
+        fetch(`/api/images/${namingImage.filename}/name`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name })
+        }).catch(() => {});
+        setImageHistory(prev => prev.map(img =>
+            img.url === namingImage.url ? { ...img, name } : img
+        ));
+        setNamingImage(null);
+    };
+
     return (
         <div className="flex flex-col h-screen">
+            {namingImage && <NameImageDialog onConfirm={handleImageNameConfirm} onSkip={() => setNamingImage(null)} />}
             <Navbar
                 isConnected={isConnected}
                 connect={handleConnect}
@@ -164,7 +210,12 @@ function App() {
                     <UAVStatus status={uavStatus}/>
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
+                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} imageHistory={imageHistory} onImageSelect={setImageName} onImageDelete={(url) => {
+                        const filename = url.split("/").pop();
+                        fetch(`/api/images/${filename}`, { method: "DELETE" }).catch(() => {});
+                        setImageHistory(prev => prev.filter(img => img.url !== url));
+                        if (imageName === url) setImageName("");
+                    }} />
                 </div>
                 <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
                     <LogView logs={logs} />
@@ -204,10 +255,29 @@ function UAVStatus({ status }) {
     );
 }
 
-function ImageLayout({ filename, isConnected, sendFunc }) {
+function ImageLayout({ filename, isConnected, sendFunc, imageHistory = [], onImageSelect, onImageDelete }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isImageLoading, setIsImageLoading] = useState(false);
+    const [pointsPerImage, setPointsPerImage] = useState({});
+    const currentPoints = useMemo(() => pointsPerImage[filename] || [], [pointsPerImage, filename]);
+
+    useEffect(() => {
+        const match = filename?.match(/\/api\/images\/([^?]+)/);
+        if (!match) return;
+        const imgFilename = match[1];
+        fetch(`/api/imagePoints/${imgFilename}`)
+            .then(r => r.json())
+            .then(pts => {
+                if (pts.length > 0) {
+                    setPointsPerImage(prev => ({
+                        ...prev,
+                        [filename]: pts
+                    }));
+                }
+            })
+            .catch(() => {});
+    }, [filename]);
 
     const imageUriToId = (uri) => {
         const parts = uri.split("/").filter(Boolean);
@@ -249,6 +319,20 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
         const targetInfo = await targetInfoPromise;
         setDialogOpen(false);
 
+        setPointsPerImage(prev => ({
+            ...prev,
+            [filename]: [...(prev[filename] || []), point]
+        }));
+
+        const match = filename?.match(/\/api\/images\/([^?]+)/);
+        if (match) {
+            fetch("/api/imagePoints", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: match[1], x: point.x, y: point.y })
+            }).catch(() => {});
+        }
+
         sendFunc({
             type: "getPoint",
             message: {
@@ -264,6 +348,7 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
     }
 
     const [tabPick, setTabPick] = useState("image");
+    const [showHistory, setShowHistory] = useState(false);
 
     return (
         <div className="relative w-full h-full">
@@ -274,6 +359,11 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                     </CardTitle>
                 </CardHeader>
                 <Button className="absolute right-7 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
+                {imageHistory.length > 0 && (
+                    <Button className="absolute right-40 top-5 shadow-lg" onClick={() => setShowHistory(h => !h)} variant="outline">
+                        Saved Images ({imageHistory.length})
+                    </Button>
+                )}
                 <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
                     <TabsList>
                         <TabsTrigger value="image">Image</TabsTrigger>
@@ -292,9 +382,26 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                                 <Spinner className="size-10 text-muted-foreground" />
                             </div>
                         )}
-                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} onImageLoaded={() => setIsImageLoading(false)} className="object-contain max-w-full max-h-full">
+                        <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} onImageLoaded={() => setIsImageLoading(false)} points={currentPoints} className="object-contain max-w-full max-h-full">
                         </Canvas>
                     </CardContent>
+                )}
+                {tabPick === "image" && showHistory && imageHistory.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto p-2 border-t flex-shrink-0">
+                        {imageHistory.map((img, i) => (
+                            <div key={i} className="flex flex-col items-center flex-shrink-0 gap-1">
+                                <img
+                                    src={img.url}
+                                    className={`h-16 w-24 object-cover rounded border-2 cursor-pointer ${filename === img.url ? "border-blue-500" : "border-transparent hover:border-gray-400"}`}
+                                    onClick={() => onImageSelect(img.url)}
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                    {img.name || new Date(img.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                                <Button variant="destructive" className="h-6 text-xs px-2 w-24" onClick={() => onImageDelete(img.url)}>Delete</Button>
+                            </div>
+                        ))}
+                    </div>
                 )}
                 {tabPick === "targetMgmt" && (
                     <CardContent>
