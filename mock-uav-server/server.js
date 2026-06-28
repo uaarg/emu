@@ -77,6 +77,13 @@ wss.on("connection", (ws) => {
     severity: "normal",
   });
 
+  let slamInterval = null;
+  let slamAngle = 0;
+
+  ws.on("close", () => {
+    if (slamInterval) clearInterval(slamInterval);
+  });
+
   ws.on("message", (raw) => {
     let msg;
     try {
@@ -120,6 +127,33 @@ wss.on("connection", (ws) => {
         message: `aim vertical=${msg.vertical} horizontal=${msg.horizontal}`,
         severity: "normal",
       });
+      return;
+    }
+
+    if (msg.type === "slam") {
+      if (msg.command === "start") {
+        slamAngle = 0;
+        sendJson(ws, { type: "log", message: "SLAM stream started", severity: "normal" });
+        slamInterval = setInterval(() => {
+          slamAngle += 0.15;
+          const r = 1000 + slamAngle * 200;
+          const posX = r * Math.cos(slamAngle);
+          const posZ = r * Math.sin(slamAngle);
+          const posY = slamAngle * 80;
+          const points = [];
+          for (let i = 0; i < 15; i++) {
+            points.push({
+              x: posX + (Math.random() - 0.5) * 800,
+              y: posY + (Math.random() - 0.5) * 300,
+              z: posZ + (Math.random() - 0.5) * 800,
+            });
+          }
+          sendJson(ws, { type: "slam_data", points, pose: { x: posX, y: posY, z: posZ } });
+        }, 200);
+      } else if (msg.command === "stop") {
+        if (slamInterval) { clearInterval(slamInterval); slamInterval = null; }
+        sendJson(ws, { type: "log", message: "SLAM stream stopped", severity: "normal" });
+      }
       return;
     }
 

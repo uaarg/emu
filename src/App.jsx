@@ -17,6 +17,7 @@ import { AddTargetDialog, NameImageDialog } from './components/Dialog.jsx';
 import { saveTarget } from './targets.js';
 import { DistanceTable } from './components/DistancesTable.jsx';
 import TargetViewer from './components/TargetViewer.jsx';
+import SlamViewer from './components/SlamViewer.jsx';
 import { Navbar } from './components/Navbar.jsx';
 
 function App() {
@@ -29,6 +30,9 @@ function App() {
     const [imageName, setImageName] = useState("");
     const [imageHistory, setImageHistory] = useState([]);
     const [namingImage, setNamingImage] = useState(null);
+    const [slamPoints, setSlamPoints] = useState([]);
+    const [slamPose, setSlamPose] = useState(null);
+    const MAX_SLAM_POINTS = 50000;
     const [logs, setLogs] = useState([]);
     const wsConnRef = useRef(new UAVConnection());
     const [isConnected, setIsConnected] = useState(false);
@@ -134,6 +138,17 @@ function App() {
                     });
                 break;
             }
+            case "slam_data":
+                if (json.points?.length) {
+                    setSlamPoints(prev => {
+                        const combined = [...prev, ...json.points];
+                        return combined.length > MAX_SLAM_POINTS
+                            ? combined.slice(combined.length - MAX_SLAM_POINTS)
+                            : combined;
+                    });
+                }
+                if (json.pose) setSlamPose(json.pose);
+                break;
             case "point":
                 if (!pending) {
                     return;
@@ -210,7 +225,7 @@ function App() {
                     <UAVStatus status={uavStatus}/>
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} imageHistory={imageHistory} onImageSelect={setImageName} onImageDelete={(url) => {
+                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} imageHistory={imageHistory} onImageSelect={setImageName} slamPoints={slamPoints} slamPose={slamPose} onClearSlam={() => { setSlamPoints([]); setSlamPose(null); }} onImageDelete={(url) => {
                         const filename = url.split("/").pop();
                         fetch(`/api/images/${filename}`, { method: "DELETE" }).catch(() => {});
                         setImageHistory(prev => prev.filter(img => img.url !== url));
@@ -255,7 +270,7 @@ function UAVStatus({ status }) {
     );
 }
 
-function ImageLayout({ filename, isConnected, sendFunc, imageHistory = [], onImageSelect, onImageDelete }) {
+function ImageLayout({ filename, isConnected, sendFunc, imageHistory = [], onImageSelect, onImageDelete, slamPoints = [], slamPose = null, onClearSlam }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isImageLoading, setIsImageLoading] = useState(false);
@@ -350,6 +365,16 @@ function ImageLayout({ filename, isConnected, sendFunc, imageHistory = [], onIma
     const [tabPick, setTabPick] = useState("image");
     const [showHistory, setShowHistory] = useState(false);
 
+    const handleTabChange = (tabName) => {
+        if (tabPick === "slam" && tabName !== "slam") {
+            sendFunc({ type: "slam", command: "stop" });
+        }
+        if (tabName === "slam" && tabPick !== "slam") {
+            sendFunc({ type: "slam", command: "start" });
+        }
+        setTabPick(tabName);
+    };
+
     return (
         <div className="relative w-full h-full">
             <Card className="w-full h-full shadow-2xl flex flex-col">
@@ -364,11 +389,12 @@ function ImageLayout({ filename, isConnected, sendFunc, imageHistory = [], onIma
                         Saved Images ({imageHistory.length})
                     </Button>
                 )}
-                <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
+                <Tabs defaultValue="image" onValueChange={handleTabChange} className="absolute left-3 top-5 font-bold">
                     <TabsList>
                         <TabsTrigger value="image">Image</TabsTrigger>
                         <TabsTrigger value="targetMgmt">Target Management</TabsTrigger>
                         <TabsTrigger value="viewer">3D Viewer</TabsTrigger>
+                        <TabsTrigger value="slam">SLAM</TabsTrigger>
                     </TabsList>
                 </Tabs>
                 {tabPick === "image" && (
@@ -411,6 +437,11 @@ function ImageLayout({ filename, isConnected, sendFunc, imageHistory = [], onIma
                 {tabPick === "viewer" && (
                     <CardContent className="h-full w-full">
                         <TargetViewer />
+                    </CardContent>
+                )}
+                {tabPick === "slam" && (
+                    <CardContent className="flex-grow h-full w-full">
+                        <SlamViewer points={slamPoints} pose={slamPose} onClear={onClearSlam} />
                     </CardContent>
                 )}
                 <Sliders sendFunc={sendFunc} />
