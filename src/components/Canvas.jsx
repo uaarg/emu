@@ -3,12 +3,15 @@ import { useEffect, useRef } from "react";
 const MAG_LENS_CSS = 60;
 const MAG_ZOOM = 2.5;
 
-function Canvas({ imgSrc, onPointsClicked, className }) {
+function Canvas({ imgSrc, onPointsClicked, onImageLoaded, points = [], className }) {
   const canvasRef = useRef(null);
   const magnifierRef = useRef(null);
   const containerRef = useRef(null);
   const pointsClickedRef = useRef(onPointsClicked);
   pointsClickedRef.current = onPointsClicked;
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+  const drawPointsRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -23,6 +26,16 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
 
     const image = new Image();
     let bitmapReady = false;
+
+    drawPointsRef.current = () => {
+      if (!bitmapReady) return;
+      ctx.fillStyle = "red";
+      for (const p of pointsRef.current) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
 
     const clientToBitmap = (clientX, clientY) => {
       const rect = canvas.getBoundingClientRect();
@@ -82,6 +95,8 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
       canvas.height = image.height;
       ctx.drawImage(image, 0, 0);
       bitmapReady = true;
+      drawPointsRef.current?.();
+      onImageLoaded?.();
     };
     image.src = imgSrc;
 
@@ -114,11 +129,16 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
 
     return () => {
       bitmapReady = false;
+      drawPointsRef.current = null;
       canvas.removeEventListener("click", construct_canvas);
       canvas.removeEventListener("mousemove", onMove);
       canvas.removeEventListener("mouseleave", onLeave);
     };
   }, [imgSrc]);
+
+  useEffect(() => {
+    drawPointsRef.current?.();
+  }, [points]);
 
   return (
     <div ref={containerRef} className="relative inline-block max-w-full max-h-full">
