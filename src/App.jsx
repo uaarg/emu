@@ -26,6 +26,7 @@ function App() {
         timeSinceMessage: 0
     });
     const [imageName, setImageName] = useState("");
+    const [isCapturing, setIsCapturing] = useState(false);
     const [logs, setLogs] = useState([]);
     const wsConnRef = useRef(new UAVConnection());
     const [isConnected, setIsConnected] = useState(false);
@@ -77,6 +78,7 @@ function App() {
                     imageCount: Number(prev.imageCount) + 1
                 }));
                 setImageName(wsConnRef.current.url + json.value);
+                setIsCapturing(false);
                 break;
             case "point":
                 if (!pending) {
@@ -122,7 +124,13 @@ function App() {
                     <UAVStatus status={uavStatus}/>
                 </div>
                 <div className="flex-grow h-full flex min-w-[400px] min-h-[400px] items-start justify-center p-4">
-                    <ImageLayout isConnected={isConnected} filename={imageName} sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)} />
+                    <ImageLayout
+                        isConnected={isConnected}
+                        filename={imageName}
+                        sendFunc={wsConnRef.current.sendMessage.bind(wsConnRef.current)}
+                        isCapturing={isCapturing}
+                        setIsCapturing={setIsCapturing}
+                    />
                 </div>
                 <div className="w-[400px] min-h-[400px] h-full flex-shrink-0 flex-grow-0 p-4">
                     <LogView logs={logs} />
@@ -186,7 +194,7 @@ function UAVStatus({ status }) {
     );
 }
 
-function ImageLayout({ filename, isConnected, sendFunc }) {
+function ImageLayout({ filename, isConnected, sendFunc, isCapturing, setIsCapturing }) {
     const dialogPendingRef = useRef(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -209,6 +217,8 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
             alert("No connection with the drone");
             return;
         }
+
+        setIsCapturing(true);
 
         //request image from UAV
         sendFunc({
@@ -254,7 +264,9 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                         Current Image
                     </CardTitle>
                 </CardHeader>
-                <Button className="absolute right-7 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline">Capture Image</Button>
+                <Button className="absolute right-7 top-5 shadow-lg" onClick={handleCaptureImage} variant="outline" disabled={isCapturing}>
+                    {isCapturing ? "Capturing..." : "Capture Image"}
+                </Button>
                 <Tabs defaultValue="image" onValueChange={tabName => setTabPick(tabName)} className="absolute left-3 top-5 font-bold">
                     <TabsList>
                         <TabsTrigger value="image">Image</TabsTrigger>
@@ -263,11 +275,17 @@ function ImageLayout({ filename, isConnected, sendFunc }) {
                     </TabsList>
                 </Tabs>
                 {tabPick === "image" && (
-                    <CardContent className="flex-grow flex items-center justify-center box-border">
+                    <CardContent className="flex-grow flex items-center justify-center box-border relative">
                         {dialogOpen && <AddTargetDialog dialogClose={() => setDialogOpen(false)} setFormData={data => {
                             dialogPendingRef.current?.resolve(data)
                             dialogPendingRef.current = null;
                         }}></AddTargetDialog>}
+                        {isCapturing && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 z-10">
+                                <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900"></div>
+                                <span className="text-sm font-medium text-gray-700">Requesting photo...</span>
+                            </div>
+                        )}
                         <Canvas imgSrc={`${filename}`} onPointsClicked={handlePointsClicked} className="object-contain max-w-full max-h-full">
                         </Canvas>
                     </CardContent>
