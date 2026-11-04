@@ -23,6 +23,7 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
 
     const image = new Image();
     let bitmapReady = false;
+    let lastPoint = null;
 
     const clientToBitmap = (clientX, clientY) => {
       const rect = canvas.getBoundingClientRect();
@@ -82,6 +83,7 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
       canvas.height = image.height;
       ctx.drawImage(image, 0, 0);
       bitmapReady = true;
+      lastPoint = null;
     };
     image.src = imgSrc;
 
@@ -91,10 +93,24 @@ function Canvas({ imgSrc, onPointsClicked, className }) {
       const rx = Math.round(x);
       const ry = Math.round(y);
       pointsClickedRef.current({ x: rx, y: ry });
+
+      if (lastPoint) {
+        ctx.save();
+        ctx.strokeStyle = "yellow";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(rx, ry);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       ctx.fillStyle = "red";
       ctx.beginPath();
       ctx.arc(rx, ry, 5, 0, Math.PI * 2);
       ctx.fill();
+
+      lastPoint = { x: rx, y: ry };
     };
 
     const onMove = (event) => {
