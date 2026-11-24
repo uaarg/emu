@@ -1,16 +1,24 @@
 Emu readme
 =============
-Emu is UAARG's latest ground station imaging software. It is based on 
+Emu is UAARG's ground station software. It is based on 
 the old ground station software - pigeon 
 
-Emu currently can:
-- Monitor drone status
-- Display images
-- Log messages
+Emu currently:
+- Keeps a redundant connection to the AEAC competition telemetry server
+- Counts telemetry ACKs and shows them in a console (#58)
+- Shows the server's infraction counts and score (#60)
+- Compares Shepard's telemetry with the server's ACKs to spot a dropped link (#59)
+- Shows the server's simulated traffic and our separation from it
+- Logs messages from Shepard
 
-Emu does this through a combination of manual and
-automatic processes. The ultimate objective is to offer a view into 
-the drone's operations.
+```
+Shepard  --ws-->  Emu backend (src/server)  <--ws-->  AEAC telemetry server
+                        |
+                        v  ws /ws
+                  Emu frontend (src)
+```
+The browser only talks to the backend; the backend holds all the state
+(`src/server/groundState.js` lists every message it pushes to the frontend).
 
 
 Install dependancies
@@ -29,18 +37,28 @@ npm install -D tailwindcss postcss autoprefixer
 
 Running Emu
 --------------
-Two terminals will be needed. One for the frontend and one for the server.
-### run the server
-In the first terminal run the following:
+Two terminals: one for the backend and one for the frontend.
 ```
-npm run server
-```
+# Backend. The token comes from the AEAC Credentials page; never commit it.
+AEAC_CONNECTION_TOKEN=<token> npm run server
 
-### run the frontend
-In the second terminal run:
-```
+# Frontend, then open the printed URL (http://localhost:5173)
 npm run dev
 ```
+Connect to Shepard from the top bar (e.g. `http://<shepard-ip>:8080`), or start
+the backend with `SHEPARD_URL` set. Without a token the telemetry server
+connection is disabled.
+
+### Testing without the drone or the real server
+```
+npm run mock-atc        # fake telemetry server on :8766
+npm run mock-shepard    # fake Shepard on :8080, streams to the fake server
+ATC_URL=ws://127.0.0.1:8766 AEAC_CONNECTION_TOKEN=test SHEPARD_URL=http://127.0.0.1:8080 npm run server
+npm run dev
+curl -X POST localhost:8080/toggle-atc   # simulate Shepard's server link dropping
+```
+`scripts/run-atc-test.sh` runs the real Shepard demo and the backend together.
+`npm run test:server` runs the backend tests.
 
 ## Contribution Guidlines
 ------------

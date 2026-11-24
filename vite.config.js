@@ -14,6 +14,11 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:3000",
         changeOrigin: true
+      },
+      // Live ground-station state from the backend (src/server/browserHub.js)
+      "/ws": {
+        target: "ws://localhost:3000",
+        ws: true
       }
     }
   }

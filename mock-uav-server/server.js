@@ -1,131 +1,122 @@
 /**
- * Mock UAV for local frontend testing.
+ * Fake Shepard for local Emu testing (no drone, no Python).
  *
- * Usage (from this directory):
- *   npm install
- *   npm start
+ * Behaves like Shepard's Emu server (src/modules/emu/emu.py) plus its
+ * TelemetrySender, using the Shepard -> Emu messages Emu's backend understands
+ * (src/server/shepardLink.js):
+ *   { type: "log", message, severity }
+ *   { type: "status", status: "mode", value }
+ *   { type: "telemetry", packet, atc_connected }   every second
+ *   { type: "atc", event }                          server messages forwarded, e.g. telemetry_ack
  *
- * In the app, connect to the printed base URL (default http://127.0.0.1:8765).
- * Capture Image sends { type: "image", message: "capture" }; this server
- * replies with { type: "img", value: "/mock/capture?..." } and serves that URL.
+ * It streams the telemetry to a telemetry server (default: the Node mock in
+ * atc-mock.js) and forwards the server's ACKs to Emu, like real Shepard should.
+ *
+ * Usage (from the repo root):
+ *   npm run mock-atc                      # terminal 1: fake telemetry server on :8766
+ *   npm run mock-shepard                  # terminal 2: this, Emu server on :8080
+ *   ATC_URL=ws://127.0.0.1:8766 AEAC_CONNECTION_TOKEN=test npm run server
+ *   npm run dev                           # then connect to http://127.0.0.1:8080 in the top bar
+ *
+ *   curl -X POST localhost:8080/toggle-atc   # simulate Shepard's server link dropping / coming back
+ *
+ * Env: PORT (8080), HOST, ATC_URL (ws://127.0.0.1:8766), AEAC_CONNECTION_TOKEN ("test"), UAV_ID ("UAARG")
  */
 
 import http from "node:http";
-import { WebSocketServer } from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 
-const PORT = Number(process.env.PORT) || 8765;
+const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || "127.0.0.1";
+const ATC_URL = process.env.ATC_URL || "ws://127.0.0.1:8766";
+const TOKEN = process.env.AEAC_CONNECTION_TOKEN || "test";
+const UAV_ID = process.env.UAV_ID || "UAARG";
 
-function buildTestSvg() {
-  const ts = new Date().toISOString();
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
-  <defs>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#3d4f5f" stroke-width="1"/>
-    </pattern>
-    <radialGradient id="glow" cx="50%" cy="40%" r="50%">
-      <stop offset="0%" stop-color="#4ecdc4"/>
-      <stop offset="100%" stop-color="#1a535c"/>
-    </radialGradient>
-  </defs>
-  <rect width="100%" height="100%" fill="#0f1419"/>
-  <rect width="100%" height="100%" fill="url(#grid)" opacity="0.5"/>
-  <circle cx="400" cy="260" r="120" fill="url(#glow)" stroke="#eee" stroke-width="3"/>
-  <circle cx="400" cy="260" r="18" fill="#ff6b6b"/>
-  <rect x="180" y="420" width="440" height="6" rx="3" fill="#95a5a6"/>
-  <text x="400" y="480" text-anchor="middle" fill="#ecf0f1" font-family="ui-monospace, monospace" font-size="20">mock-uav-server</text>
-  <text x="400" y="515" text-anchor="middle" fill="#7f8c8d" font-family="ui-monospace, monospace" font-size="14">${ts}</text>
-</svg>`;
+const emuClients = new Set();
+let atcSocket = null;
+let atcEnabled = true; // false = pretend Shepard's link to the server dropped
+const start = Date.now();
+
+function toEmu(obj) {
+  const data = JSON.stringify(obj);
+  for (const ws of emuClients) if (ws.readyState === WebSocket.OPEN) ws.send(data);
 }
 
-function sendJson(ws, obj) {
-  if (ws.readyState === 1) ws.send(JSON.stringify(obj));
+function log(message, severity = "normal") {
+  console.log(`[fake-shepard] ${message}`);
+  toEmu({ type: "log", message, severity });
 }
 
+// ---- Telemetry server link ----
+function connectAtc() {
+  if (!atcEnabled) return;
+  const sep = ATC_URL.includes("?") ? "&" : "?";
+  const ws = new WebSocket(`${ATC_URL}${sep}Authorization=${encodeURIComponent(TOKEN)}`);
+  ws.on("open", () => { atcSocket = ws; log(`connected to telemetry server ${ATC_URL}`); });
+  ws.on("message", (raw) => {
+    let event;
+    try { event = JSON.parse(raw.toString()); } catch { return; }
+    // Forward what Emu needs; traffic Emu already gets on its own connection
+    if (event.event !== "traffic") toEmu({ type: "atc", event });
+  });
+  ws.on("error", () => {});
+  ws.on("close", () => {
+    if (atcSocket === ws) { atcSocket = null; log("telemetry server connection closed", "warning"); }
+    setTimeout(connectAtc, 2000);
+  });
+}
+
+// ---- Fake telemetry, 1 Hz ----
+function fakePacket() {
+  const t = (Date.now() - start) / 1000;
+  return {
+    uavId: UAV_ID,
+    unixTime: Date.now() / 1000,
+    latitude: 53.4975 + 0.0004 * Math.sin(t / 30),
+    longitude: -113.5535 + 0.0006 * Math.cos(t / 30),
+    altitudeAGL: 30,
+    horizontalPositionAccuracy: 0.8,
+    verticalPositionAccuracy: 1.2,
+    batteryPercentage: Math.max(0, 100 - t / 20),
+    mode: "idle",
+    rcLinkStatus: 1,
+    telemetryLinkStatus: 1,
+  };
+}
+
+setInterval(() => {
+  const packet = fakePacket();
+  let sent = false;
+  if (atcEnabled && atcSocket?.readyState === WebSocket.OPEN) {
+    atcSocket.send(JSON.stringify({ action: "telemetry", data: packet }));
+    sent = true;
+  }
+  toEmu({ type: "telemetry", packet, atc_connected: sent });
+}, 1000);
+
+// ---- Emu server ----
 const server = http.createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    res.writeHead(204);
-    res.end();
+  if (req.method === "POST" && req.url === "/toggle-atc") {
+    atcEnabled = !atcEnabled;
+    if (atcEnabled) connectAtc();
+    else { const ws = atcSocket; atcSocket = null; ws?.close(); }
+    log(atcEnabled ? "telemetry server link restored (simulated)" : "telemetry server link DROPPED (simulated)",
+        atcEnabled ? "normal" : "warning");
+    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ atcEnabled }));
     return;
   }
-
-  if (req.method === "GET" && req.url.startsWith("/mock/capture")) {
-    const body = Buffer.from(buildTestSvg(), "utf8");
-    res.writeHead(200, {
-      "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": "no-store",
-    });
-    res.end(body);
-    return;
-  }
-
-  res.writeHead(404, { "Content-Type": "text/plain" });
-  res.end("not found");
+  res.writeHead(404).end();
 });
 
 const wss = new WebSocketServer({ server, path: "/ws" });
-
 wss.on("connection", (ws) => {
-  sendJson(ws, { type: "status", status: "mode", value: "mock" });
-  sendJson(ws, {
-    type: "log",
-    message: "mock UAV connected",
-    severity: "normal",
-  });
-
-  ws.on("message", (raw) => {
-    let msg;
-    try {
-      msg = JSON.parse(String(raw));
-    } catch {
-      return;
-    }
-
-    if (msg.type === "image" && msg.message === "capture") {
-      const now = new Date();
-      const path = `/mock/capture?t=${now.getTime()}`;
-      const when = new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "medium",
-      }).format(now);
-      sendJson(ws, { type: "img", value: path });
-      sendJson(ws, {
-        type: "log",
-        message: `sent frame ${path} at ${when}`,
-        severity: "normal",
-      });
-      return;
-    }
-
-    if (msg.type === "getDistance") {
-      sendJson(ws, {
-        type: "distance",
-        message: "12.34",
-      });
-      sendJson(ws, {
-        type: "log",
-        message: "mock distance: 12.34 (fixed)",
-        severity: "normal",
-      });
-      return;
-    }
-
-    if (msg.type === "aim") {
-      sendJson(ws, {
-        type: "log",
-        message: `aim vertical=${msg.vertical} horizontal=${msg.horizontal}`,
-        severity: "normal",
-      });
-    }
-  });
+  emuClients.add(ws);
+  ws.on("close", () => emuClients.delete(ws));
+  ws.send(JSON.stringify({ type: "status", status: "mode", value: "idle" }));
+  log("Emu connected");
 });
 
 server.listen(PORT, HOST, () => {
-  const base = `http://${HOST}:${PORT}`;
-  console.log(`Mock UAV HTTP + WebSocket listening at ${base}`);
-  console.log(`Connect the frontend to: ${base} (WebSocket: ${base}/ws)`);
+  console.log(`[fake-shepard] Emu server on http://${HOST}:${PORT} (ws path /ws), telemetry server ${ATC_URL}`);
+  connectAtc();
 });

@@ -36,4 +36,9 @@ export default [
       "react/prop-types": "off",
     },
   },
+  {
+    // The backend runs in Node, not the browser
+    files: ['src/server/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ]
